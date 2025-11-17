@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, ScatterChart, Scatter } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, ScatterChart, Scatter, AreaChart, Area } from 'recharts';
 import { Upload, TrendingUp, TrendingDown, DollarSign, Calendar, FileText, X, Edit2, Save, Filter, Brain, Eye, EyeOff, Search, Plus, Trash2, BarChart3, RefreshCw, Download, FolderOpen } from 'lucide-react';
 import Papa from 'papaparse';
 
@@ -7,6 +7,7 @@ const FinancialTracker = () => {
   const [statements, setStatements] = useState([]);
   const [monthlyData, setMonthlyData] = useState([]);
   const [categoryData, setCategoryData] = useState([]);
+  const [categoryOverTimeData, setCategoryOverTimeData] = useState([]);
   const [allTransactions, setAllTransactions] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
@@ -559,10 +560,45 @@ const FinancialTracker = () => {
       }))
       .sort((a, b) => b.value - a.value);
 
+    // Build category spending over time data
+    const categoryTimeMap = new Map(); // Map of month -> { month, category1, category2, ... }
+    const topCategories = categoryArray.slice(0, 8).map(c => c.name); // Top 8 categories for cleaner visualization
+
+    netTransactions.forEach(transaction => {
+      if (transaction.amount <= 0) return; // Only track spending, not credits
+
+      const monthYear = `${transaction.date.getFullYear()}-${String(transaction.date.getMonth() + 1).padStart(2, '0')}`;
+      const category = transaction.category;
+
+      if (!categoryTimeMap.has(monthYear)) {
+        categoryTimeMap.set(monthYear, { month: monthYear });
+        // Initialize all top categories to 0 for this month
+        topCategories.forEach(cat => {
+          categoryTimeMap.get(monthYear)[cat] = 0;
+        });
+      }
+
+      const monthData = categoryTimeMap.get(monthYear);
+
+      // Only track top categories, group others into "Other"
+      if (topCategories.includes(category)) {
+        const effectiveAmount = transaction.isRefunded ? (transaction.netAmount || 0) : transaction.amount;
+        monthData[category] = (monthData[category] || 0) + effectiveAmount;
+      }
+    });
+
+    const categoryOverTimeArray = Array.from(categoryTimeMap.values())
+      .map(month => ({
+        ...month,
+        date: new Date(month.month + '-01').toLocaleDateString('en-US', { year: 'numeric', month: 'short' })
+      }))
+      .sort((a, b) => new Date(a.month) - new Date(b.month));
+
     console.log('Setting categoryData with', categoryArray.length, 'categories');
     console.log('Category array:', categoryArray.map(c => `${c.name}: ${c.transactions?.length} transactions`));
     setMonthlyData(monthlyArray);
     setCategoryData(categoryArray);
+    setCategoryOverTimeData(categoryOverTimeArray);
 
     // Calculate summary
     const totalExpenses = monthlyArray.reduce((sum, month) => sum + month.expenses, 0);
@@ -1100,6 +1136,60 @@ const FinancialTracker = () => {
                       </ResponsiveContainer>
                     </div>
                   </div>
+
+                  {/* Category Spending Over Time - Full Width */}
+                  {categoryOverTimeData.length > 0 && (
+                    <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
+                      <h3 className="text-xl font-bold text-gray-800 mb-4">Category Spending Trends Over Time</h3>
+                      <ResponsiveContainer width="100%" height={400}>
+                        <AreaChart data={categoryOverTimeData}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="date" />
+                          <YAxis tickFormatter={(value) => `$${(value/1000).toFixed(0)}k`} />
+                          <Tooltip formatter={(value) => formatCurrency(value)} />
+                          <Legend />
+                          {categoryData.slice(0, 8).map((category, index) => (
+                            <Area
+                              key={category.name}
+                              type="monotone"
+                              dataKey={category.name}
+                              stackId="1"
+                              stroke={COLORS[index % COLORS.length]}
+                              fill={COLORS[index % COLORS.length]}
+                              fillOpacity={0.6}
+                            />
+                          ))}
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+
+                  {/* Category Comparison - Line Chart */}
+                  {categoryOverTimeData.length > 0 && (
+                    <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
+                      <h3 className="text-xl font-bold text-gray-800 mb-4">Category Comparison (Top 5)</h3>
+                      <ResponsiveContainer width="100%" height={350}>
+                        <LineChart data={categoryOverTimeData}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="date" />
+                          <YAxis tickFormatter={(value) => `$${(value/1000).toFixed(1)}k`} />
+                          <Tooltip formatter={(value) => formatCurrency(value)} />
+                          <Legend />
+                          {categoryData.slice(0, 5).map((category, index) => (
+                            <Line
+                              key={category.name}
+                              type="monotone"
+                              dataKey={category.name}
+                              stroke={COLORS[index % COLORS.length]}
+                              strokeWidth={2}
+                              dot={{ r: 4 }}
+                              activeDot={{ r: 6 }}
+                            />
+                          ))}
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
                 </>
               )}
 
