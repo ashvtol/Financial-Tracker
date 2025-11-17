@@ -24,6 +24,9 @@ const FinancialTracker = () => {
   const [showRefundMatching, setShowRefundMatching] = useState(true);
   const [selectedUser, setSelectedUser] = useState('combined');
   const [availableUsers, setAvailableUsers] = useState([]);
+  const [expandedCategory, setExpandedCategory] = useState(null);
+  const [notification, setNotification] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [summary, setSummary] = useState({
     totalIncome: 0,
     totalExpenses: 0,
@@ -49,42 +52,141 @@ const FinancialTracker = () => {
 
   const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#8dd1e1', '#d084d0', '#ffb347', '#87ceeb', '#dda0dd', '#98fb98'];
 
-  // Load saved data on component mount
-  useEffect(() => {
-    const savedModel = localStorage.getItem('financialTrackerLearningModel');
-    if (savedModel) {
-      try {
+  const API_URL = 'http://localhost:3001/api';
+
+  // Helper function to show notifications
+  const showNotification = useCallback((message, type = 'success') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 3000);
+  }, []);
+
+  // Load AI model from file via API
+  const loadModelFromAPI = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_URL}/model`);
+      const modelData = await response.json();
+
+      if (modelData.learningModel && Object.keys(modelData.learningModel).length > 0) {
+        const modelMap = new Map(Object.entries(modelData.learningModel));
+        setLearningModel(modelMap);
+        console.log('Loaded AI model from file:', Object.keys(modelData.learningModel).length, 'merchants');
+      }
+
+      if (modelData.customCategories && modelData.customCategories.length > 0) {
+        setCustomCategories(modelData.customCategories);
+        console.log('Loaded custom categories from file:', modelData.customCategories.length, 'categories');
+      }
+    } catch (error) {
+      console.error('Error loading AI model from file:', error);
+      // Fallback to localStorage if API fails
+      const savedModel = localStorage.getItem('financialTrackerLearningModel');
+      if (savedModel) {
         const parsedModel = JSON.parse(savedModel);
         const modelMap = new Map(Object.entries(parsedModel));
         setLearningModel(modelMap);
-      } catch (error) {
-        console.error('Error loading saved learning model:', error);
-      }
-    }
-
-    const savedCategories = localStorage.getItem('financialTrackerCustomCategories');
-    if (savedCategories) {
-      try {
-        const parsedCategories = JSON.parse(savedCategories);
-        setCustomCategories(parsedCategories);
-      } catch (error) {
-        console.error('Error loading saved custom categories:', error);
       }
     }
   }, []);
 
-  // Save learning model and custom categories whenever they change
-  useEffect(() => {
-    if (learningModel.size > 0) {
-      const modelObject = Object.fromEntries(learningModel);
+  // Save AI model to file via API
+  const saveModelToAPI = useCallback(async (model, categories) => {
+    try {
+      const modelObject = Object.fromEntries(model);
+      const response = await fetch(`${API_URL}/model`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          learningModel: modelObject,
+          customCategories: categories
+        })
+      });
+
+      if (response.ok) {
+        console.log('AI model saved to file successfully');
+      } else {
+        console.error('Failed to save AI model to file');
+        // Fallback to localStorage
+        localStorage.setItem('financialTrackerLearningModel', JSON.stringify(modelObject));
+      }
+    } catch (error) {
+      console.error('Error saving AI model to file:', error);
+      // Fallback to localStorage
+      const modelObject = Object.fromEntries(model);
       localStorage.setItem('financialTrackerLearningModel', JSON.stringify(modelObject));
     }
-  }, [learningModel]);
+  }, []);
 
+  // Save AI model to file
+  const saveModelToFile = useCallback(() => {
+    const modelObject = Object.fromEntries(learningModel);
+    const modelData = {
+      version: '1.0',
+      timestamp: new Date().toISOString(),
+      learningModel: modelObject,
+      customCategories: customCategories
+    };
+
+    const blob = new Blob([JSON.stringify(modelData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `ai-model-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    showNotification('AI model exported successfully!');
+  }, [learningModel, customCategories, showNotification]);
+
+  // Load AI model from uploaded file and save to API
+  const loadModelFromFile = useCallback((event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const modelData = JSON.parse(e.target.result);
+
+        if (modelData.learningModel) {
+          const modelMap = new Map(Object.entries(modelData.learningModel));
+          setLearningModel(modelMap);
+
+          // Save to file via API
+          await saveModelToAPI(modelMap, modelData.customCategories || customCategories);
+        }
+
+        if (modelData.customCategories) {
+          setCustomCategories(modelData.customCategories);
+        }
+
+        showNotification('AI model imported and saved to file successfully!');
+
+        // Reprocess transactions with new model
+        if (allTransactions.length > 0) {
+          // Force a re-categorization by updating the refresh key
+          setRefreshKey(prev => prev + 1);
+        }
+      } catch (error) {
+        console.error('Error loading AI model from file:', error);
+        showNotification('Error importing AI model. Please check the file format.', 'error');
+      }
+    };
+    reader.readAsText(file);
+  }, [allTransactions, showNotification, saveModelToAPI, customCategories]);
+
+  // Load saved data on component mount from file
   useEffect(() => {
-    // Always save custom categories, even if empty array
-    localStorage.setItem('financialTrackerCustomCategories', JSON.stringify(customCategories));
-  }, [customCategories]);
+    loadModelFromAPI();
+  }, [loadModelFromAPI]);
+
+  // Save learning model and custom categories to file whenever they change
+  useEffect(() => {
+    if (learningModel.size > 0) {
+      saveModelToAPI(learningModel, customCategories);
+    }
+  }, [learningModel, customCategories, saveModelToAPI]);
 
   // Reprocess data when user selection changes
   useEffect(() => {
@@ -92,6 +194,21 @@ const FinancialTracker = () => {
       processData(allTransactions);
     }
   }, [selectedUser]);
+
+  // Reprocess data when transactions are updated (e.g., category changes)
+  useEffect(() => {
+    if (allTransactions.length > 0) {
+      processData(allTransactions);
+    }
+  }, [allTransactions]);
+
+  // Reprocess data when learning model or refresh key changes (e.g., after importing model)
+  useEffect(() => {
+    if (allTransactions.length > 0 && refreshKey > 0) {
+      console.log('Reprocessing data after model update, refreshKey:', refreshKey);
+      processData(allTransactions);
+    }
+  }, [refreshKey, learningModel]);
 
   const getAllCategories = () => {
     return [...PREDEFINED_CATEGORIES, ...customCategories].sort();
@@ -129,7 +246,9 @@ const FinancialTracker = () => {
     // Check if we've learned this merchant before
     const merchant = extractMerchant(desc);
     if (learningModel.has(merchant)) {
-      return learningModel.get(merchant);
+      const learnedCategory = learningModel.get(merchant);
+      console.log(`Using AI learned category for "${merchant}": ${learnedCategory}`);
+      return learnedCategory;
     }
 
     // For credit card statements: negative amounts are typically credits/refunds
@@ -303,10 +422,16 @@ const FinancialTracker = () => {
             const date = row.Date || row.date || row['Transaction Date'] || row['Posted Date'] || '';
             const description = row.Description || row.description || row['Transaction Description'] || row.Memo || '';
             const amount = parseFloat(row.Amount || row.amount || row.Debit || row.Credit || 0);
-            const category = row.Category || row.category || categorizeTransaction(description, amount);
+            // Always use our categorization logic (ignore CSV categories)
+            const category = categorizeTransaction(description, amount);
+
+            // Create unique ID using date, description, amount, and index to avoid duplicates
+            const dateStr = new Date(date).getTime();
+            const descHash = description.substring(0, 20).replace(/\s/g, '');
+            const uniqueId = `${file.name}-${dateStr}-${descHash}-${amount}-${index}`;
 
             return {
-              id: `${file.name}-${index}`,
+              id: uniqueId,
               date: new Date(date),
               description: description.trim(),
               amount: amount,
@@ -358,6 +483,8 @@ const FinancialTracker = () => {
   }, [allTransactions, parseStatement]);
 
   const processData = useCallback((transactions) => {
+    console.log('processData called with', transactions.length, 'transactions');
+
     // Filter transactions by selected user
     const userFilteredTransactions = selectedUser === 'combined'
       ? transactions
@@ -390,19 +517,27 @@ const FinancialTracker = () => {
         }
       }
 
-      // Category data - only track actual net spending (positive amounts that aren't fully refunded)
+      // Category data - track both spending and credits
+      const category = transaction.category;
+      if (!categoryMap.has(category)) {
+        categoryMap.set(category, { total: 0, credits: 0, count: 0, transactions: [] });
+      }
+
+      const catData = categoryMap.get(category);
+
       if (transaction.amount > 0) {
-        const category = transaction.category;
-        if (!categoryMap.has(category)) {
-          categoryMap.set(category, { total: 0, count: 0, transactions: [] });
-        }
-        
-        const catData = categoryMap.get(category);
+        // Track spending (positive amounts)
         const effectiveAmount = transaction.isRefunded ? (transaction.netAmount || 0) : transaction.amount;
         catData.total += effectiveAmount;
-        if (effectiveAmount > 0) catData.count += 1; // Only count as a transaction if there's net spending
-        catData.transactions.push(transaction);
+        if (effectiveAmount > 0) catData.count += 1;
+      } else {
+        // Track credits (negative amounts, excluding payments)
+        if (transaction.category !== 'Payment') {
+          catData.credits += Math.abs(transaction.amount);
+        }
       }
+
+      catData.transactions.push(transaction);
     });
 
     const monthlyArray = Array.from(monthlyMap.values())
@@ -414,14 +549,18 @@ const FinancialTracker = () => {
       .sort((a, b) => new Date(a.month) - new Date(b.month));
 
     const categoryArray = Array.from(categoryMap.entries())
-      .map(([name, data]) => ({ 
-        name, 
-        value: data.total, 
+      .map(([name, data]) => ({
+        name,
+        value: data.total,
+        credits: data.credits || 0,
         count: data.count,
+        transactions: data.transactions || [],
         avgTransaction: data.count > 0 ? data.total / data.count : 0
       }))
       .sort((a, b) => b.value - a.value);
 
+    console.log('Setting categoryData with', categoryArray.length, 'categories');
+    console.log('Category array:', categoryArray.map(c => `${c.name}: ${c.transactions?.length} transactions`));
     setMonthlyData(monthlyArray);
     setCategoryData(categoryArray);
 
@@ -437,25 +576,71 @@ const FinancialTracker = () => {
       totalSavings: -netSpending, // Negative net spending means you got more credits than charges
       avgMonthlySpending
     });
-  }, [getNetTransactions, selectedUser]);
+  }, [getNetTransactions, selectedUser, showRefundMatching]);
 
   const updateTransactionCategory = (transactionId, newCategory) => {
+    // Find the transaction being updated
+    const targetTransaction = allTransactions.find(t => t.id === transactionId);
+
+    console.log('Target transaction:', targetTransaction);
+    console.log('New category:', newCategory);
+
+    if (!targetTransaction || targetTransaction.isImmutableCategory) {
+      console.log('Transaction is immutable or not found');
+      return; // Don't change immutable categories
+    }
+
+    // Extract merchant from the transaction
+    const merchant = extractMerchant(targetTransaction.description.toLowerCase());
+    console.log('Extracted merchant:', merchant);
+
+    // Update the learning model
+    updateLearningModel(targetTransaction.description, newCategory);
+
+    // Update ALL transactions from the same merchant
     const updatedTransactions = allTransactions.map(t => {
-      if (t.id === transactionId) {
-        // Prevent changing category for credits/refunds (immutable)
-        if (t.isImmutableCategory) {
-          return t; // Don't change the category for credits/refunds
-        }
-        
-        updateLearningModel(t.description, newCategory);
+      if (t.isImmutableCategory) {
+        return t; // Don't change immutable categories
+      }
+
+      const currentMerchant = extractMerchant(t.description.toLowerCase());
+
+      // If same merchant, update category
+      if (currentMerchant === merchant) {
+        console.log(`Updating transaction ${t.id} from ${t.category} to ${newCategory}`);
         return { ...t, category: newCategory };
       }
+
       return t;
     });
-    
-    setAllTransactions(updatedTransactions);
-    processData(updatedTransactions);
+
+    console.log('Updated transactions count:', updatedTransactions.filter(t => t.category === newCategory).length);
+    console.log('All transactions before update:', allTransactions.length);
+    console.log('Updated transactions:', updatedTransactions.length);
+
+    // Update state - useEffect will automatically reprocess data
+    setAllTransactions([...updatedTransactions]); // Create new array reference
     setEditingTransaction(null);
+
+    // Force a re-render to update the category lists
+    setRefreshKey(prev => prev + 1);
+
+    // Show feedback to user
+    const updatedCount = updatedTransactions.filter(t => {
+      const m = extractMerchant(t.description.toLowerCase());
+      return m === merchant && !t.isImmutableCategory;
+    }).length;
+
+    // Show notification
+    setNotification({
+      message: `Updated ${updatedCount} transaction(s) to "${newCategory}". AI model saved!`,
+      type: 'success'
+    });
+
+    // Auto-hide notification after 3 seconds
+    setTimeout(() => setNotification(null), 3000);
+
+    console.log(`Updated ${updatedCount} transaction(s) for merchant "${merchant}" to category "${newCategory}"`);
   };
 
   const getFilteredTransactions = () => {
@@ -644,6 +829,24 @@ const FinancialTracker = () => {
           <p className="text-gray-600">AI-powered categorization with learning capabilities</p>
         </header>
 
+        {/* Notification Toast */}
+        {notification && (
+          <div className="fixed top-4 right-4 z-50 animate-slide-in">
+            <div className={`rounded-lg shadow-lg p-4 flex items-center space-x-3 ${
+              notification.type === 'success' ? 'bg-green-500' : 'bg-blue-500'
+            } text-white`}>
+              <Brain className="h-5 w-5" />
+              <p className="font-medium">{notification.message}</p>
+              <button
+                onClick={() => setNotification(null)}
+                className="ml-2 hover:bg-white/20 rounded p-1"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Upload Section */}
         <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
           <div 
@@ -672,6 +875,31 @@ const FinancialTracker = () => {
               <FileText className="mr-2 h-4 w-4" />
               Choose Folder
             </label>
+            {learningModel.size > 0 && (
+              <>
+                <button
+                  onClick={saveModelToFile}
+                  className="ml-4 inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Export AI Model
+                </button>
+                <input
+                  type="file"
+                  id="model-upload"
+                  accept=".json"
+                  onChange={loadModelFromFile}
+                  className="hidden"
+                />
+                <label
+                  htmlFor="model-upload"
+                  className="ml-2 inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md cursor-pointer hover:bg-purple-700 transition-colors"
+                >
+                  <Upload className="mr-2 h-4 w-4" />
+                  Import AI Model
+                </label>
+              </>
+            )}
             {allTransactions.length > 0 && (
               <button
                 onClick={clearData}
@@ -1298,21 +1526,142 @@ const FinancialTracker = () => {
                     </div>
                   </div>
 
-                  <div className="mt-8 bg-white rounded-lg shadow-lg p-6">
+                  <div className="mt-8 bg-white rounded-lg shadow-lg p-6" key={refreshKey}>
                     <h3 className="text-xl font-bold text-gray-800 mb-4">Category Details</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="space-y-4">
                       {getMultiCategoryData().map((category, index) => (
-                        <div key={category.name} className="border rounded-lg p-4">
-                          <div className="flex items-center mb-2">
-                            <div 
-                              className="w-4 h-4 rounded mr-2" 
-                              style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                            ></div>
-                            <h4 className="font-semibold">{category.name}</h4>
+                        <div key={`${category.name}-${refreshKey}`} className="border rounded-lg overflow-hidden">
+                          <div
+                            className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                            onClick={() => setExpandedCategory(expandedCategory === category.name ? null : category.name)}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center flex-1">
+                                <div
+                                  className="w-4 h-4 rounded mr-3"
+                                  style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                                ></div>
+                                <div className="flex-1">
+                                  <h4 className="font-semibold text-gray-900">{category.name}</h4>
+                                  <div className="flex items-center space-x-4 mt-1">
+                                    <p className="text-sm text-gray-600">{category.count} transactions</p>
+                                    {category.credits > 0 && (
+                                      <p className="text-sm text-green-600">
+                                        {formatCurrency(category.credits)} in credits
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="text-right ml-4">
+                                <p className="text-2xl font-bold text-gray-800">{formatCurrency(category.value)}</p>
+                                <p className="text-sm text-gray-600">Avg: {formatCurrency(category.avgTransaction)}</p>
+                              </div>
+                              <div className="ml-4">
+                                {expandedCategory === category.name ? (
+                                  <Eye className="h-5 w-5 text-blue-600" />
+                                ) : (
+                                  <EyeOff className="h-5 w-5 text-gray-400" />
+                                )}
+                              </div>
+                            </div>
                           </div>
-                          <p className="text-2xl font-bold text-gray-800">{formatCurrency(category.value)}</p>
-                          <p className="text-sm text-gray-600">{category.count} transactions</p>
-                          <p className="text-sm text-gray-600">Avg: {formatCurrency(category.avgTransaction)}</p>
+
+                          {/* Expandable Transaction List */}
+                          {expandedCategory === category.name && category.transactions && (
+                            <div className="border-t bg-gray-50 p-4">
+                              <h5 className="font-semibold text-gray-700 mb-3">
+                                All Transactions ({category.transactions.length})
+                              </h5>
+                              <div className="max-h-96 overflow-y-auto">
+                                <table className="w-full text-sm">
+                                  <thead className="bg-gray-100 sticky top-0">
+                                    <tr>
+                                      <th className="px-3 py-2 text-left">Date</th>
+                                      <th className="px-3 py-2 text-left">Description</th>
+                                      <th className="px-3 py-2 text-left">Category</th>
+                                      <th className="px-3 py-2 text-right">Amount</th>
+                                      <th className="px-3 py-2 text-center">Action</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-gray-200">
+                                    {category.transactions
+                                      .sort((a, b) => b.date - a.date)
+                                      .map((transaction, idx) => (
+                                        <tr key={transaction.id} className="hover:bg-white">
+                                          <td className="px-3 py-2 text-gray-600 whitespace-nowrap">
+                                            {transaction.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                          </td>
+                                          <td className="px-3 py-2 text-gray-900 truncate max-w-xs" title={transaction.description}>
+                                            {transaction.description}
+                                          </td>
+                                          <td className="px-3 py-2">
+                                            {editingTransaction === transaction.id ? (
+                                              transaction.isImmutableCategory ? (
+                                                <span className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-600">
+                                                  {transaction.category} (Locked)
+                                                </span>
+                                              ) : (
+                                                <select
+                                                  value={transaction.category}
+                                                  onChange={(e) => updateTransactionCategory(transaction.id, e.target.value)}
+                                                  className="px-2 py-1 border rounded text-xs w-full"
+                                                  autoFocus
+                                                  onClick={(e) => e.stopPropagation()}
+                                                >
+                                                  {getAllCategories().map(cat => (
+                                                    <option key={cat} value={cat}>{cat}</option>
+                                                  ))}
+                                                </select>
+                                              )
+                                            ) : (
+                                              <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                                transaction.category === 'Credits/Refunds' ? 'bg-green-100 text-green-800' :
+                                                transaction.category === 'Payment' ? 'bg-purple-100 text-purple-800' :
+                                                transaction.category === 'Other' ? 'bg-gray-100 text-gray-800' :
+                                                learningModel.has(extractMerchant(transaction.description.toLowerCase())) ? 'bg-green-100 text-green-800' :
+                                                'bg-blue-100 text-blue-800'
+                                              }`}>
+                                                {transaction.category}
+                                                {transaction.isImmutableCategory && (
+                                                  <span className="ml-1 text-xs">🔒</span>
+                                                )}
+                                                {!transaction.isImmutableCategory && learningModel.has(extractMerchant(transaction.description.toLowerCase())) && (
+                                                  <Brain className="inline h-3 w-3 ml-1" title="AI Learned" />
+                                                )}
+                                              </span>
+                                            )}
+                                          </td>
+                                          <td className={`px-3 py-2 text-right font-medium ${
+                                            transaction.amount < 0 ? 'text-green-600' : 'text-gray-900'
+                                          }`}>
+                                            {transaction.amount < 0 ? '+' : ''}{formatCurrency(Math.abs(transaction.amount))}
+                                          </td>
+                                          <td className="px-3 py-2 text-center">
+                                            {transaction.isImmutableCategory ? (
+                                              <span className="text-gray-400 text-xs">Locked</span>
+                                            ) : (
+                                              <button
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  setEditingTransaction(
+                                                    editingTransaction === transaction.id ? null : transaction.id
+                                                  );
+                                                }}
+                                                className="text-blue-600 hover:text-blue-800"
+                                                title="Edit category"
+                                              >
+                                                <Edit2 className="h-4 w-4" />
+                                              </button>
+                                            )}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>

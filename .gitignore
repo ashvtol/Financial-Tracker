@@ -37,5 +37,8 @@ Thumbs.db
 Statments/
 Statements/
 
+# AI Model - User-specific learning data (optional - commit if you want to share the model)
+src/models/ai-model.json
+
 # Claude Code
 .claude/

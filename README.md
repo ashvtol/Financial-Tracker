@@ -8,10 +8,11 @@ An AI-powered financial tracking application with smart categorization, user man
 
 - **Multi-User Support**: Upload folder structures to automatically organize transactions by user
 - **AI-Powered Categorization**: Smart transaction categorization with learning capabilities
+- **Persistent AI Model Storage**: AI learning model automatically saved to `src/models/ai-model.json`
 - **Refund Matching**: Automatically matches charges with refunds to show net spending
 - **Custom Categories**: Create and manage your own spending categories
 - **Interactive Visualizations**: Charts and graphs for spending analysis
-- **Data Export/Import**: Export and import AI learning models
+- **Data Export/Import**: Export and import AI learning models as JSON files
 - **Combined & Individual Views**: View data for individual users or all users combined
 
 ## Getting Started
@@ -25,8 +26,8 @@ An AI-powered financial tracking application with smart categorization, user man
 
 1. Clone the repository
 ```bash
-git clone <your-repo-url>
-cd Finanial-Tracker
+git clone https://github.com/ashvtol/Financial-Tracker.git
+cd Financial-Tracker
 ```
 
 2. Install dependencies
@@ -34,12 +35,22 @@ cd Finanial-Tracker
 npm install
 ```
 
-3. Start the development server
+3. Start both the API server and development server
 ```bash
+npm start
+```
+Or run them separately:
+```bash
+# Terminal 1 - API server for AI model storage
+npm run server
+
+# Terminal 2 - React development server
 npm run dev
 ```
 
 4. Open your browser to `http://localhost:3000`
+
+**Note:** The API server runs on port 3001 and handles persistent file storage of the AI learning model in `src/models/ai-model.json`.
 
 ## Usage
 
@@ -55,6 +66,12 @@ npm run dev
 
 4. **Analyze Spending**: View charts, insights, and monthly summaries
 
+5. **AI Model Management**:
+   - The AI learning model is automatically saved to `src/models/ai-model.json` after each categorization
+   - Export your model: Click "Export AI Model" to download a backup
+   - Import a model: Click "Import AI Model" to restore from a backup file
+   - The model persists across sessions and is shared across all users
+
 ## CSV Format
 
 Your CSV files should include these columns:
@@ -65,12 +82,18 @@ Your CSV files should include these columns:
 
 ## Technologies Used
 
+### Frontend
 - React
 - Vite
 - Recharts (for visualizations)
 - PapaCSV (for CSV parsing)
 - Tailwind CSS
 - Lucide React (icons)
+
+### Backend
+- Express.js (API server for model storage)
+- Node.js File System API
+- CORS enabled for local development
 
 ## License
 
