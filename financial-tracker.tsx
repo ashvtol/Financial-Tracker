@@ -33,11 +33,11 @@ const FinancialTracker = () => {
 
   const PREDEFINED_CATEGORIES = [
     'Digital Entertainment', 'Entertainment', 'Food & Dining', 'Groceries',
-    'Transportation - Parking', 'Transportation - Cab/Rideshare', 'Transportation - Fuel', 
+    'Transportation - Parking', 'Transportation - Cab/Rideshare', 'Transportation - Fuel',
     'Transportation - Tolls', 'Transportation - Public Transit', 'Transportation - Other',
     'Housing & Utilities', 'Shopping', 'Healthcare', 'Education', 'Travel', 'Investments',
     'Insurance', 'Bank Fees', 'Personal Care', 'Gifts & Donations',
-    'Subscriptions', 'Phone & Internet', 'Credits/Refunds', 'Other'
+    'Subscriptions', 'Phone & Internet', 'Payment', 'Credits/Refunds', 'Other'
   ];
 
   const BASE_CATEGORIES = [
@@ -125,16 +125,27 @@ const FinancialTracker = () => {
   // Enhanced categorization with learning
   const categorizeTransaction = useCallback((description, amount) => {
     const desc = description.toLowerCase();
-    
+
     // Check if we've learned this merchant before
     const merchant = extractMerchant(desc);
     if (learningModel.has(merchant)) {
       return learningModel.get(merchant);
     }
 
-    // For credit card statements: negative amounts are credits/refunds, positive amounts are charges
+    // For credit card statements: negative amounts are typically credits/refunds
+    // BUT: Distinguish between user payments and actual credits/refunds
     if (amount < 0) {
-      return 'Credit/Refund'; // Credits applied to account (refunds, returns, etc.)
+      // Check if this is a payment made by the user (not a refund/credit)
+      if (desc.includes('online payment') ||
+          desc.includes('mobile payment') ||
+          desc.includes('autopay payment') ||
+          desc.includes('payment - thank you') ||
+          desc.includes('payment thank you') ||
+          desc.includes('payment received')) {
+        return 'Payment'; // User's payment towards credit card bill
+      }
+      // These are actual credits/reimbursements from Amex
+      return 'Credits/Refunds'; // Actual refunds, credits, and reimbursements
     }
 
     // Enhanced rule-based categorization for spending (positive amounts)
@@ -254,12 +265,27 @@ const FinancialTracker = () => {
 
   // Extract user name from file path (e.g., "Statements/Ashish/..." -> "Ashish")
   const extractUserFromFile = (file) => {
+    // Try webkitRelativePath first (folder upload)
     if (file.webkitRelativePath) {
       const parts = file.webkitRelativePath.split('/');
-      if (parts.length > 1) {
-        return parts[1]; // Return the user folder name
+      // Expected structure: Statments/UserName/BankName/file.csv
+      // parts[0] = Statments, parts[1] = UserName, parts[2] = BankName, parts[3] = file.csv
+      if (parts.length >= 2 && parts[1]) {
+        return parts[1]; // Return the user folder name (e.g., "Ashish")
       }
     }
+
+    // Fallback: try to extract from file name or path property
+    const path = file.path || file.name || '';
+    const pathParts = path.split('/');
+    if (pathParts.length >= 2) {
+      // Look for pattern: .../UserName/BankName/...
+      const userIndex = pathParts.findIndex(p => p === 'Statments' || p === 'Statements');
+      if (userIndex >= 0 && pathParts[userIndex + 1]) {
+        return pathParts[userIndex + 1];
+      }
+    }
+
     return 'Unknown User';
   };
 
@@ -272,6 +298,7 @@ const FinancialTracker = () => {
         skipEmptyLines: true,
         complete: (results) => {
           const userName = extractUserFromFile(file);
+          console.log('File:', file.name, 'Path:', file.webkitRelativePath || file.path, 'Extracted User:', userName);
           const transactions = results.data.map((row, index) => {
             const date = row.Date || row.date || row['Transaction Date'] || row['Posted Date'] || '';
             const description = row.Description || row.description || row['Transaction Description'] || row.Memo || '';
@@ -350,14 +377,17 @@ const FinancialTracker = () => {
       }
 
       const monthData = monthlyMap.get(monthYear);
-      
+
       // For credit card statements: positive amounts are charges/spending, negative amounts are credits
       if (transaction.amount > 0) {
         // Use netAmount if available (for refunded transactions), otherwise use full amount
         const effectiveAmount = transaction.isRefunded ? (transaction.netAmount || 0) : transaction.amount;
         monthData.expenses += effectiveAmount;
       } else {
-        monthData.credits += Math.abs(transaction.amount);
+        // Don't count user payments as credits (they're payments towards the bill)
+        if (transaction.category !== 'Payment') {
+          monthData.credits += Math.abs(transaction.amount);
+        }
       }
 
       // Category data - only track actual net spending (positive amounts that aren't fully refunded)
