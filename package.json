@@ -2,6 +2,11 @@
   "name": "financial-tracker",
   "version": "1.0.0",
   "description": "Advanced Financial Tracker with AI-powered categorization",
+  "author": "Ashish Kumar <ashvtol@github>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ashvtol/Financial-Tracker.git"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",

@@ -2,6 +2,8 @@
 
 An AI-powered financial tracking application with smart categorization, user management, and comprehensive analytics.
 
+**Author:** Ashish Kumar ([@ashvtol](https://github.com/ashvtol))
+
 ## Features
 
 - **Multi-User Support**: Upload folder structures to automatically organize transactions by user
