@@ -2,6 +2,11 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, ScatterChart, Scatter, AreaChart, Area } from 'recharts';
 import { Upload, TrendingUp, TrendingDown, DollarSign, Calendar, FileText, X, Edit2, Save, Filter, Brain, Eye, EyeOff, Search, Plus, Trash2, BarChart3, RefreshCw, Download, FolderOpen } from 'lucide-react';
 import Papa from 'papaparse';
+import { PREDEFINED_CATEGORIES, BASE_CATEGORIES, COLORS } from '../constants/categories';
+import { API_URL, TIME_RANGES } from '../constants/config';
+import { formatCurrency } from '../utils/formatters';
+import { getTimeRangeFilter } from '../utils/timeRanges';
+import { extractMerchant, extractUserFromFile } from '../utils/transactionUtils';
 
 const FinancialTracker = () => {
   const [statements, setStatements] = useState([]);
@@ -34,26 +39,8 @@ const FinancialTracker = () => {
     totalSavings: 0,
     avgMonthlySpending: 0
   });
-
-  const PREDEFINED_CATEGORIES = [
-    'Digital Entertainment', 'Entertainment', 'Food & Dining', 'Groceries',
-    'Transportation - Parking', 'Transportation - Cab/Rideshare', 'Transportation - Fuel',
-    'Transportation - Tolls', 'Transportation - Public Transit', 'Transportation - Other',
-    'Housing & Utilities', 'Shopping', 'Healthcare', 'Education', 'Travel', 'Investments',
-    'Insurance', 'Bank Fees', 'Personal Care', 'Gifts & Donations',
-    'Subscriptions', 'Phone & Internet', 'Payment', 'Credits/Refunds', 'Other'
-  ];
-
-  const BASE_CATEGORIES = [
-    'Digital Entertainment', 'Entertainment', 'Food & Dining', 'Groceries',
-    'Transportation', 'Housing & Utilities', 'Shopping', 'Healthcare', 
-    'Education', 'Travel', 'Investments', 'Insurance', 'Bank Fees', 
-    'Personal Care', 'Gifts & Donations', 'Subscriptions', 'Phone & Internet', 'Other'
-  ];
-
-  const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#8dd1e1', '#d084d0', '#ffb347', '#87ceeb', '#dda0dd', '#98fb98'];
-
-  const API_URL = 'http://localhost:3001/api';
+  const [selectedCategoriesForCharts, setSelectedCategoriesForCharts] = useState(new Set());
+  const [timeRange, setTimeRange] = useState('all');
 
   // Helper function to show notifications
   const showNotification = useCallback((message, type = 'success') => {
@@ -89,6 +76,35 @@ const FinancialTracker = () => {
     }
   }, []);
 
+  // Load transactions from file via API
+  const loadTransactionsFromAPI = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_URL}/transactions`);
+      const data = await response.json();
+
+      if (data.transactions && data.transactions.length > 0) {
+        // Convert date strings back to Date objects
+        const transactions = data.transactions.map(t => ({
+          ...t,
+          date: new Date(t.date)
+        }));
+
+        setAllTransactions(transactions);
+        setStatements(transactions);
+
+        // Extract unique users
+        const users = [...new Set(transactions.map(t => t.user))].sort();
+        setAvailableUsers(users);
+
+        // processData will be called automatically by the useEffect that watches allTransactions
+        console.log('Loaded', transactions.length, 'transactions from file');
+        showNotification(`Loaded ${transactions.length} saved transactions`, 'success');
+      }
+    } catch (error) {
+      console.error('Error loading transactions from file:', error);
+    }
+  }, [showNotification]);
+
   // Save AI model to file via API
   const saveModelToAPI = useCallback(async (model, categories) => {
     try {
@@ -114,6 +130,26 @@ const FinancialTracker = () => {
       // Fallback to localStorage
       const modelObject = Object.fromEntries(model);
       localStorage.setItem('financialTrackerLearningModel', JSON.stringify(modelObject));
+    }
+  }, []);
+
+  // Save transactions to file via API
+  const saveTransactionsToAPI = useCallback(async (transactions) => {
+    try {
+      const response = await fetch(`${API_URL}/transactions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transactions })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Transactions saved to file successfully:', result.count, 'transactions');
+      } else {
+        console.error('Failed to save transactions to file');
+      }
+    } catch (error) {
+      console.error('Error saving transactions to file:', error);
     }
   }, []);
 
@@ -180,7 +216,8 @@ const FinancialTracker = () => {
   // Load saved data on component mount from file
   useEffect(() => {
     loadModelFromAPI();
-  }, [loadModelFromAPI]);
+    loadTransactionsFromAPI();
+  }, [loadModelFromAPI, loadTransactionsFromAPI]);
 
   // Save learning model and custom categories to file whenever they change
   useEffect(() => {
@@ -188,6 +225,13 @@ const FinancialTracker = () => {
       saveModelToAPI(learningModel, customCategories);
     }
   }, [learningModel, customCategories, saveModelToAPI]);
+
+  // Save transactions to file whenever they change
+  useEffect(() => {
+    if (allTransactions.length > 0) {
+      saveTransactionsToAPI(allTransactions);
+    }
+  }, [allTransactions, saveTransactionsToAPI]);
 
   // Reprocess data when user selection changes
   useEffect(() => {
@@ -298,11 +342,24 @@ const FinancialTracker = () => {
     return 'Other';
   }, [learningModel]);
 
-  const extractMerchant = (description) => {
-    // Extract merchant name from transaction description
-    const words = description.toLowerCase().split(/[\s\-#\*]+/);
-    return words.slice(0, 2).join(' ').trim();
-  };
+
+  // Filter transactions by time range and selected categories
+  const getFilteredDataForCharts = useCallback((transactions) => {
+    let filtered = transactions;
+
+    // Apply time range filter
+    const timeFilter = getTimeRangeFilter(timeRange);
+    if (timeFilter) {
+      filtered = filtered.filter(t => t.date >= timeFilter.start && t.date <= timeFilter.end);
+    }
+
+    // Apply category filter for charts
+    if (selectedCategoriesForCharts.size > 0) {
+      filtered = filtered.filter(t => selectedCategoriesForCharts.has(t.category));
+    }
+
+    return filtered;
+  }, [timeRange, selectedCategoriesForCharts]);
 
   const findMatchingRefunds = useCallback((transactions) => {
     const matches = new Map();
@@ -382,32 +439,6 @@ const FinancialTracker = () => {
     const merchant = extractMerchant(description);
     setLearningModel(prev => new Map(prev).set(merchant, category));
   }, []);
-
-  // Extract user name from file path (e.g., "Statements/Ashish/..." -> "Ashish")
-  const extractUserFromFile = (file) => {
-    // Try webkitRelativePath first (folder upload)
-    if (file.webkitRelativePath) {
-      const parts = file.webkitRelativePath.split('/');
-      // Expected structure: Statments/UserName/BankName/file.csv
-      // parts[0] = Statments, parts[1] = UserName, parts[2] = BankName, parts[3] = file.csv
-      if (parts.length >= 2 && parts[1]) {
-        return parts[1]; // Return the user folder name (e.g., "Ashish")
-      }
-    }
-
-    // Fallback: try to extract from file name or path property
-    const path = file.path || file.name || '';
-    const pathParts = path.split('/');
-    if (pathParts.length >= 2) {
-      // Look for pattern: .../UserName/BankName/...
-      const userIndex = pathParts.findIndex(p => p === 'Statments' || p === 'Statements');
-      if (userIndex >= 0 && pathParts[userIndex + 1]) {
-        return pathParts[userIndex + 1];
-      }
-    }
-
-    return 'Unknown User';
-  };
 
   // Parse different statement formats
   const parseStatement = useCallback((file, content) => {
@@ -719,8 +750,138 @@ const FinancialTracker = () => {
 
   const getMultiCategoryData = () => {
     if (selectedCategories.size === 0) return categoryData;
-    
+
     return categoryData.filter(cat => selectedCategories.has(cat.name));
+  };
+
+  // Apply time range and category filters to data for chart display only
+  const getFilteredMonthlyData = () => {
+    if (timeRange === 'all' && selectedCategoriesForCharts.size === 0) {
+      return monthlyData;
+    }
+
+    // We need to recalculate from transactions
+    const filtered = getFilteredDataForCharts(allTransactions.filter(t =>
+      selectedUser === 'combined' ? true : t.user === selectedUser
+    ));
+
+    const monthlyMap = new Map();
+    const netTransactions = getNetTransactions(filtered);
+
+    netTransactions.forEach(transaction => {
+      const monthYear = `${transaction.date.getFullYear()}-${String(transaction.date.getMonth() + 1).padStart(2, '0')}`;
+
+      if (!monthlyMap.has(monthYear)) {
+        monthlyMap.set(monthYear, { expenses: 0, credits: 0, month: monthYear });
+      }
+
+      const monthData = monthlyMap.get(monthYear);
+
+      if (transaction.amount > 0) {
+        const effectiveAmount = transaction.isRefunded ? (transaction.netAmount || 0) : transaction.amount;
+        monthData.expenses += effectiveAmount;
+      } else {
+        if (transaction.category !== 'Payment') {
+          monthData.credits += Math.abs(transaction.amount);
+        }
+      }
+    });
+
+    return Array.from(monthlyMap.values())
+      .map(month => ({
+        ...month,
+        netSpending: month.expenses - month.credits,
+        date: new Date(month.month + '-01').toLocaleDateString('en-US', { year: 'numeric', month: 'short' })
+      }))
+      .sort((a, b) => new Date(a.month) - new Date(b.month));
+  };
+
+  const getFilteredCategoryData = () => {
+    if (timeRange === 'all' && selectedCategoriesForCharts.size === 0) {
+      return categoryData;
+    }
+
+    // Recalculate from filtered transactions
+    const filtered = getFilteredDataForCharts(allTransactions.filter(t =>
+      selectedUser === 'combined' ? true : t.user === selectedUser
+    ));
+
+    const categoryMap = new Map();
+    const netTransactions = getNetTransactions(filtered);
+
+    netTransactions.forEach(transaction => {
+      const category = transaction.category;
+      if (!categoryMap.has(category)) {
+        categoryMap.set(category, { total: 0, credits: 0, count: 0, transactions: [] });
+      }
+
+      const catData = categoryMap.get(category);
+
+      if (transaction.amount > 0) {
+        const effectiveAmount = transaction.isRefunded ? (transaction.netAmount || 0) : transaction.amount;
+        catData.total += effectiveAmount;
+        if (effectiveAmount > 0) catData.count += 1;
+      } else {
+        if (transaction.category !== 'Payment') {
+          catData.credits += Math.abs(transaction.amount);
+        }
+      }
+
+      catData.transactions.push(transaction);
+    });
+
+    return Array.from(categoryMap.entries())
+      .map(([name, data]) => ({
+        name,
+        value: data.total,
+        credits: data.credits || 0,
+        count: data.count,
+        transactions: data.transactions || [],
+        avgTransaction: data.count > 0 ? data.total / data.count : 0
+      }))
+      .sort((a, b) => b.value - a.value);
+  };
+
+  const getFilteredCategoryOverTimeData = () => {
+    if (timeRange === 'all' && selectedCategoriesForCharts.size === 0) {
+      return categoryOverTimeData;
+    }
+
+    const filtered = getFilteredDataForCharts(allTransactions.filter(t =>
+      selectedUser === 'combined' ? true : t.user === selectedUser
+    ));
+
+    const netTransactions = getNetTransactions(filtered);
+    const categoryTimeMap = new Map();
+    const topCategories = getFilteredCategoryData().slice(0, 8).map(c => c.name);
+
+    netTransactions.forEach(transaction => {
+      if (transaction.amount <= 0) return;
+
+      const monthYear = `${transaction.date.getFullYear()}-${String(transaction.date.getMonth() + 1).padStart(2, '0')}`;
+      const category = transaction.category;
+
+      if (!categoryTimeMap.has(monthYear)) {
+        categoryTimeMap.set(monthYear, { month: monthYear });
+        topCategories.forEach(cat => {
+          categoryTimeMap.get(monthYear)[cat] = 0;
+        });
+      }
+
+      const monthData = categoryTimeMap.get(monthYear);
+
+      if (topCategories.includes(category)) {
+        const effectiveAmount = transaction.isRefunded ? (transaction.netAmount || 0) : transaction.amount;
+        monthData[category] = (monthData[category] || 0) + effectiveAmount;
+      }
+    });
+
+    return Array.from(categoryTimeMap.values())
+      .map(month => ({
+        ...month,
+        date: new Date(month.month + '-01').toLocaleDateString('en-US', { year: 'numeric', month: 'short' })
+      }))
+      .sort((a, b) => new Date(a.month) - new Date(b.month));
   };
 
   const getMonthlyCategoryTotals = () => {
@@ -772,7 +933,7 @@ const FinancialTracker = () => {
     e.target.value = '';
   }, [handleFileUpload]);
 
-  const clearData = () => {
+  const clearData = async () => {
     setStatements([]);
     setAllTransactions([]);
     setMonthlyData([]);
@@ -780,8 +941,17 @@ const FinancialTracker = () => {
     setSearchQuery('');
     setCategoryFilter('all');
     setDateFilter({ start: '', end: '' });
-    // Note: We keep both learning model and custom categories across data clears
     setSummary({ totalIncome: 0, totalExpenses: 0, totalSavings: 0, avgMonthlySpending: 0 });
+
+    // Clear saved transactions from file
+    try {
+      await fetch(`${API_URL}/transactions`, { method: 'DELETE' });
+      console.log('Cleared saved transactions from file');
+      showNotification('All data cleared successfully');
+    } catch (error) {
+      console.error('Error clearing transactions:', error);
+    }
+    // Note: We keep both learning model and custom categories across data clears
   };
 
   const clearLearningModel = () => {
@@ -846,13 +1016,6 @@ const FinancialTracker = () => {
     reader.readAsText(file);
     // Reset the input
     event.target.value = '';
-  };
-
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(value);
   };
 
   const uniqueCategories = [...new Set(allTransactions.map(t => t.category))].sort();
@@ -1096,12 +1259,91 @@ const FinancialTracker = () => {
                     </div>
                   </div>
 
+                  {/* Filters for Charts */}
+                  <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Visualization Filters</h3>
+
+                    {/* Time Range Selection */}
+                    <div className="mb-6">
+                      <label className="block text-sm font-medium text-gray-700 mb-3">Time Range</label>
+                      <div className="flex flex-wrap gap-2">
+                        {TIME_RANGES.map(({ value, label }) => (
+                          <button
+                            key={value}
+                            onClick={() => setTimeRange(value)}
+                            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                              timeRange === value
+                                ? 'bg-blue-600 text-white shadow-md'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Category Selection */}
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Categories to Display (leave empty for all)
+                        </label>
+                        {selectedCategoriesForCharts.size > 0 && (
+                          <button
+                            onClick={() => setSelectedCategoriesForCharts(new Set())}
+                            className="text-sm text-blue-600 hover:text-blue-800 underline"
+                          >
+                            Clear Selection
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                        {uniqueCategories
+                          .filter(cat => cat !== 'Payment' && cat !== 'Credits/Refunds')
+                          .map(category => (
+                            <label
+                              key={category}
+                              className={`flex items-center space-x-2 p-2 rounded border cursor-pointer transition-colors ${
+                                selectedCategoriesForCharts.has(category)
+                                  ? 'bg-blue-50 border-blue-300'
+                                  : 'bg-white border-gray-200 hover:border-gray-300'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedCategoriesForCharts.has(category)}
+                                onChange={(e) => {
+                                  const newSet = new Set(selectedCategoriesForCharts);
+                                  if (e.target.checked) {
+                                    newSet.add(category);
+                                  } else {
+                                    newSet.delete(category);
+                                  }
+                                  setSelectedCategoriesForCharts(newSet);
+                                }}
+                                className="rounded text-blue-600"
+                              />
+                              <span className="text-sm truncate" title={category}>
+                                {category}
+                              </span>
+                            </label>
+                          ))}
+                      </div>
+                      {selectedCategoriesForCharts.size > 0 && (
+                        <div className="mt-3 text-sm text-gray-600">
+                          Showing {selectedCategoriesForCharts.size} of {uniqueCategories.filter(cat => cat !== 'Payment' && cat !== 'Credits/Refunds').length} categories
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   {/* Charts */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
                     <div className="bg-white rounded-lg shadow-lg p-6">
                       <h3 className="text-xl font-bold text-gray-800 mb-4">Monthly Spending & Payments</h3>
                       <ResponsiveContainer width="100%" height={300}>
-                        <LineChart data={monthlyData}>
+                        <LineChart data={getFilteredMonthlyData()}>
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis dataKey="date" />
                           <YAxis tickFormatter={(value) => `${(value/1000).toFixed(0)}k`} />
@@ -1118,7 +1360,7 @@ const FinancialTracker = () => {
                       <ResponsiveContainer width="100%" height={300}>
                         <PieChart>
                           <Pie
-                            data={categoryData.slice(0, 8)}
+                            data={getFilteredCategoryData().slice(0, 8)}
                             cx="50%"
                             cy="50%"
                             labelLine={false}
@@ -1127,7 +1369,7 @@ const FinancialTracker = () => {
                             fill="#8884d8"
                             dataKey="value"
                           >
-                            {categoryData.slice(0, 8).map((entry, index) => (
+                            {getFilteredCategoryData().slice(0, 8).map((entry, index) => (
                               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
                           </Pie>
@@ -1138,17 +1380,17 @@ const FinancialTracker = () => {
                   </div>
 
                   {/* Category Spending Over Time - Full Width */}
-                  {categoryOverTimeData.length > 0 && (
+                  {getFilteredCategoryOverTimeData().length > 0 && (
                     <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
                       <h3 className="text-xl font-bold text-gray-800 mb-4">Category Spending Trends Over Time</h3>
                       <ResponsiveContainer width="100%" height={400}>
-                        <AreaChart data={categoryOverTimeData}>
+                        <AreaChart data={getFilteredCategoryOverTimeData()}>
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis dataKey="date" />
                           <YAxis tickFormatter={(value) => `$${(value/1000).toFixed(0)}k`} />
                           <Tooltip formatter={(value) => formatCurrency(value)} />
                           <Legend />
-                          {categoryData.slice(0, 8).map((category, index) => (
+                          {getFilteredCategoryData().slice(0, 8).map((category, index) => (
                             <Area
                               key={category.name}
                               type="monotone"
@@ -1165,17 +1407,17 @@ const FinancialTracker = () => {
                   )}
 
                   {/* Category Comparison - Line Chart */}
-                  {categoryOverTimeData.length > 0 && (
+                  {getFilteredCategoryOverTimeData().length > 0 && (
                     <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
                       <h3 className="text-xl font-bold text-gray-800 mb-4">Category Comparison (Top 5)</h3>
                       <ResponsiveContainer width="100%" height={350}>
-                        <LineChart data={categoryOverTimeData}>
+                        <LineChart data={getFilteredCategoryOverTimeData()}>
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis dataKey="date" />
                           <YAxis tickFormatter={(value) => `$${(value/1000).toFixed(1)}k`} />
                           <Tooltip formatter={(value) => formatCurrency(value)} />
                           <Legend />
-                          {categoryData.slice(0, 5).map((category, index) => (
+                          {getFilteredCategoryData().slice(0, 5).map((category, index) => (
                             <Line
                               key={category.name}
                               type="monotone"

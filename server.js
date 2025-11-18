@@ -7,6 +7,7 @@ const path = require('path');
 const app = express();
 const PORT = 3001;
 const MODEL_PATH = path.join(__dirname, 'src', 'models', 'ai-model.json');
+const TRANSACTIONS_PATH = path.join(__dirname, 'src', 'models', 'transactions.json');
 
 app.use(cors());
 app.use(bodyParser.json({ limit: '10mb' }));
@@ -61,7 +62,65 @@ app.post('/api/model', async (req, res) => {
   }
 });
 
+// Load transactions from file
+app.get('/api/transactions', async (req, res) => {
+  try {
+    await ensureModelsDir();
+    const data = await fs.readFile(TRANSACTIONS_PATH, 'utf-8');
+    res.json(JSON.parse(data));
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      // File doesn't exist, return empty array
+      res.json({
+        version: '1.0',
+        timestamp: new Date().toISOString(),
+        transactions: []
+      });
+    } else {
+      console.error('Error loading transactions:', error);
+      res.status(500).json({ error: 'Failed to load transactions' });
+    }
+  }
+});
+
+// Save transactions to file
+app.post('/api/transactions', async (req, res) => {
+  try {
+    await ensureModelsDir();
+    const transactionsData = {
+      version: '1.0',
+      timestamp: new Date().toISOString(),
+      transactions: req.body.transactions || []
+    };
+    await fs.writeFile(TRANSACTIONS_PATH, JSON.stringify(transactionsData, null, 2), 'utf-8');
+    console.log('Transactions saved to:', TRANSACTIONS_PATH);
+    console.log('Total transactions:', transactionsData.transactions.length);
+    res.json({ success: true, message: 'Transactions saved successfully', count: transactionsData.transactions.length });
+  } catch (error) {
+    console.error('Error saving transactions:', error);
+    res.status(500).json({ error: 'Failed to save transactions' });
+  }
+});
+
+// Delete transactions file
+app.delete('/api/transactions', async (req, res) => {
+  try {
+    await fs.unlink(TRANSACTIONS_PATH);
+    console.log('Transactions file deleted');
+    res.json({ success: true, message: 'Transactions deleted successfully' });
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      // File doesn't exist, that's fine
+      res.json({ success: true, message: 'No transactions to delete' });
+    } else {
+      console.error('Error deleting transactions:', error);
+      res.status(500).json({ error: 'Failed to delete transactions' });
+    }
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Model API server running on http://localhost:${PORT}`);
   console.log(`Model file location: ${MODEL_PATH}`);
+  console.log(`Transactions file location: ${TRANSACTIONS_PATH}`);
 });
