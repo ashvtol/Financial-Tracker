@@ -15,6 +15,65 @@ An AI-powered financial tracking application with smart categorization, user man
 - **Data Export/Import**: Export and import AI learning models as JSON files
 - **Combined & Individual Views**: View data for individual users or all users combined
 
+## Project Structure
+
+```
+Financial-Tracker/
+├── src/
+│   ├── components/
+│   │   └── FinancialTracker.tsx    # Main application component
+│   ├── constants/
+│   │   ├── categories.ts           # Default spending categories
+│   │   └── config.ts               # Application configuration
+│   ├── models/
+│   │   ├── ai-model.json           # Persistent AI learning model
+│   │   └── transactions.json       # Persisted transaction data
+│   ├── types/
+│   │   └── transaction.ts          # TypeScript type definitions
+│   ├── utils/
+│   │   ├── formatters.ts           # Data formatting utilities
+│   │   ├── timeRanges.ts           # Date/time range helpers
+│   │   └── transactionUtils.ts     # Transaction processing logic
+│   ├── main.jsx                    # React application entry point
+│   └── index.css                   # Global styles
+├── Statments/                      # Financial statements directory
+│   └── [UserName]/                 # User-specific folder
+│       └── [BankName]/             # Bank-specific folder
+│           └── *.csv               # CSV statement files
+├── server.js                       # Express API server for model persistence
+├── package.json                    # Node.js dependencies and scripts
+├── vite.config.js                  # Vite build configuration
+├── tailwind.config.js              # Tailwind CSS configuration
+└── README.md                       # This file
+```
+
+### Statement File Organization
+
+The application reads financial statements from a structured folder hierarchy:
+
+```
+Statments/
+├── User1/
+│   ├── American-Express/
+│   │   └── YTD_2025.csv
+│   ├── Chase/
+│   │   └── statement.csv
+│   └── BankOfAmerica/
+│       └── transactions.csv
+└── User2/
+    ├── American-Express/
+    │   └── YTD_2025.csv
+    └── Citibank/
+        └── monthly_statement.csv
+```
+
+**Key Points:**
+- First level: User names (automatically detected and displayed in the user selector)
+- Second level: Bank names (used for organization, not displayed in UI)
+- Third level: CSV files (all CSV files in bank folders are processed)
+- Multiple CSV files per bank are supported and will be combined
+- Folder and file names are case-sensitive
+
 ## Getting Started
 
 ### Prerequisites
