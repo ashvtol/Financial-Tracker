@@ -20,6 +20,7 @@ const FinancialTracker = () => {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState({ start: '', end: '' });
+  const [displayLimit, setDisplayLimit] = useState(100);
   const [learningModel, setLearningModel] = useState(new Map());
   const [selectedCategories, setSelectedCategories] = useState(new Set());
   const [customCategories, setCustomCategories] = useState([]);
@@ -327,6 +328,8 @@ const FinancialTracker = () => {
     if (desc.includes('car rental') || desc.includes('hertz') || desc.includes('enterprise') || desc.includes('avis') || desc.includes('budget') || desc.includes('zipcar')) return 'Transportation - Other';
     
     if (desc.includes('rent') || desc.includes('mortgage') || desc.includes('utilities') || desc.includes('electric') || desc.includes('water')) return 'Housing & Utilities';
+    // Whole Foods purchases via Amazon (pattern: AMAZON.COM*<random>AMZN.COM/BILL)
+    if (desc.includes('amazon.com*') && desc.includes('amzn.com/bill')) return 'Whole Foods Groceries';
     if (desc.includes('amazon') && !desc.includes('prime') || desc.includes('shopping') || desc.includes('mall')) return 'Shopping';
     if (desc.includes('doctor') || desc.includes('pharmacy') || desc.includes('medical') || desc.includes('health')) return 'Healthcare';
     if (desc.includes('school') || desc.includes('university') || desc.includes('education') || desc.includes('tuition')) return 'Education';
@@ -1542,6 +1545,7 @@ const FinancialTracker = () => {
                           setSearchQuery('');
                           setCategoryFilter('all');
                           setDateFilter({ start: '', end: '' });
+                          setDisplayLimit(100);
                         }}
                         className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
                       >
@@ -1677,7 +1681,7 @@ const FinancialTracker = () => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {getFilteredTransactions().slice(0, 100).map((transaction) => {
+                        {getFilteredTransactions().slice(0, (dateFilter.start || dateFilter.end) ? undefined : displayLimit).map((transaction) => {
                           const netTransaction = showRefundMatching ? getNetTransactions([transaction])[0] : transaction;
                           const isRefunded = netTransaction?.isRefunded;
                           
@@ -1765,9 +1769,18 @@ const FinancialTracker = () => {
                       </tbody>
                     </table>
                     
-                    {getFilteredTransactions().length > 100 && (
-                      <div className="px-6 py-4 bg-gray-50 text-sm text-gray-600 text-center">
-                        Showing first 100 results. Use filters to narrow down your search.
+                    {/* Show More button when no date filter and more transactions exist */}
+                    {!(dateFilter.start || dateFilter.end) && getFilteredTransactions().length > displayLimit && (
+                      <div className="px-6 py-4 bg-gray-50 text-center">
+                        <span className="text-sm text-gray-600 mr-4">
+                          Showing {displayLimit} of {getFilteredTransactions().length} transactions
+                        </span>
+                        <button
+                          onClick={() => setDisplayLimit(prev => prev + 100)}
+                          className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
+                        >
+                          Show More
+                        </button>
                       </div>
                     )}
                   </div>
