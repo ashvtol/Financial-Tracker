@@ -748,6 +748,41 @@ const FinancialTracker = () => {
     return filtered.sort((a, b) => b.date - a.date);
   };
 
+  const getDateRangeSummary = () => {
+    if (!dateFilter.start && !dateFilter.end) return null;
+
+    const filtered = getFilteredTransactions();
+    const expenses = filtered.filter(t => t.isExpense && !t.isCredit);
+    // Only count actual refunds/credits, not payments
+    const credits = filtered.filter(t => t.category === 'Credits/Refunds');
+
+    // Calculate category totals
+    const categoryTotals = new Map<string, number>();
+    expenses.forEach(t => {
+      const current = categoryTotals.get(t.category) || 0;
+      categoryTotals.set(t.category, current + t.amount);
+    });
+
+    // Sort categories by total (descending)
+    const sortedCategories = Array.from(categoryTotals.entries())
+      .map(([category, total]) => ({ category, total }))
+      .sort((a, b) => b.total - a.total);
+
+    const totalExpenditure = expenses.reduce((sum, t) => sum + t.amount, 0);
+    const totalCredits = credits.reduce((sum, t) => sum + Math.abs(t.amount), 0);
+    const netSpending = totalExpenditure - totalCredits;
+
+    return {
+      categories: sortedCategories,
+      totalExpenditure,
+      totalCredits,
+      netSpending,
+      transactionCount: filtered.length,
+      expenseCount: expenses.length,
+      creditCount: credits.length
+    };
+  };
+
   const getMultiCategoryData = () => {
     if (selectedCategories.size === 0) return categoryData;
 
@@ -1530,6 +1565,70 @@ const FinancialTracker = () => {
                       </span>
                     )}
                   </div>
+
+                  {/* Date Range Summary */}
+                  {(dateFilter.start || dateFilter.end) && getDateRangeSummary() && (
+                    <div className="bg-white rounded-lg shadow mb-6 overflow-hidden">
+                      <div className="bg-indigo-50 px-6 py-4 border-b border-indigo-100">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-lg font-semibold text-indigo-900">
+                            Date Range Summary
+                            {dateFilter.start && dateFilter.end && (
+                              <span className="ml-2 text-sm font-normal text-indigo-600">
+                                ({new Date(dateFilter.start).toLocaleDateString()} - {new Date(dateFilter.end).toLocaleDateString()})
+                              </span>
+                            )}
+                          </h3>
+                          <div className="text-right">
+                            <div className="text-2xl font-bold text-indigo-700">
+                              {formatCurrency(getDateRangeSummary()?.totalExpenditure || 0)}
+                            </div>
+                            <div className="text-xs text-indigo-500">Total Expenditure</div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="p-6">
+                        {/* Summary Stats */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                          <div className="bg-gray-50 rounded-lg p-3 text-center">
+                            <div className="text-lg font-semibold text-gray-800">{getDateRangeSummary()?.expenseCount || 0}</div>
+                            <div className="text-xs text-gray-500">Expenses</div>
+                          </div>
+                          <div className="bg-green-50 rounded-lg p-3 text-center">
+                            <div className="text-lg font-semibold text-green-700">{formatCurrency(getDateRangeSummary()?.totalCredits || 0)}</div>
+                            <div className="text-xs text-green-600">Credits/Refunds</div>
+                          </div>
+                          <div className="bg-blue-50 rounded-lg p-3 text-center">
+                            <div className="text-lg font-semibold text-blue-700">{formatCurrency(getDateRangeSummary()?.netSpending || 0)}</div>
+                            <div className="text-xs text-blue-600">Net Spending</div>
+                          </div>
+                          <div className="bg-purple-50 rounded-lg p-3 text-center">
+                            <div className="text-lg font-semibold text-purple-700">{getDateRangeSummary()?.categories.length || 0}</div>
+                            <div className="text-xs text-purple-600">Categories</div>
+                          </div>
+                        </div>
+
+                        {/* Category Breakdown */}
+                        <h4 className="text-sm font-medium text-gray-700 mb-3">Spending by Category</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {getDateRangeSummary()?.categories.map((cat) => {
+                            const percentage = ((cat.total / (getDateRangeSummary()?.totalExpenditure || 1)) * 100).toFixed(1);
+                            return (
+                              <div key={cat.category} className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-3">
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-sm font-medium text-gray-800 truncate">{cat.category}</div>
+                                  <div className="text-xs text-gray-500">{percentage}%</div>
+                                </div>
+                                <div className="text-sm font-bold text-gray-900 ml-3">
+                                  {formatCurrency(cat.total)}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Monthly Category Summary */}
                   {showMonthlySummary && getMonthlyCategoryTotals().length > 0 && (
