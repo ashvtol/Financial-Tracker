@@ -6,7 +6,8 @@ import { PREDEFINED_CATEGORIES, BASE_CATEGORIES, COLORS } from '../constants/cat
 import { API_URL, TIME_RANGES } from '../constants/config';
 import { formatCurrency } from '../utils/formatters';
 import { getTimeRangeFilter } from '../utils/timeRanges';
-import { extractMerchant, extractUserFromFile } from '../utils/transactionUtils';
+import { extractMerchant, extractUserFromFile, findMatchingMerchant } from '../utils/transactionUtils';
+import { parsePDFStatement, isPDFFile } from '../utils/pdfParser';
 
 const FinancialTracker = () => {
   const [statements, setStatements] = useState([]);
@@ -289,12 +290,12 @@ const FinancialTracker = () => {
   const categorizeTransaction = useCallback((description, amount) => {
     const desc = description.toLowerCase();
 
-    // Check if we've learned this merchant before
+    // Check if we've learned this merchant before (with fuzzy matching)
     const merchant = extractMerchant(desc);
-    if (learningModel.has(merchant)) {
-      const learnedCategory = learningModel.get(merchant);
-      console.log(`Using AI learned category for "${merchant}": ${learnedCategory}`);
-      return learnedCategory;
+    const fuzzyMatch = findMatchingMerchant(merchant, learningModel);
+    if (fuzzyMatch) {
+      console.log(`Using AI learned category for "${merchant}" (matched "${fuzzyMatch.key}"): ${fuzzyMatch.category}`);
+      return fuzzyMatch.category;
     }
 
     // For credit card statements: negative amounts are typically credits/refunds
@@ -369,15 +370,15 @@ const FinancialTracker = () => {
     const refundMatches = [];
 
     transactions.forEach((transaction, index) => {
-      if (transaction.amount > 0) {
+      if (transaction.isExpense) {
         // This is a charge, look for matching refunds
         const merchant = extractMerchant(transaction.description);
         const amount = transaction.amount;
         const dateWindow = 90; // Look for refunds within 90 days
-        
-        // Find potential refunds (negative amounts) for this merchant and amount
+
+        // Find potential refunds for this merchant and amount
         const potentialRefunds = transactions.filter((t, i) => {
-          if (i === index || t.amount >= 0) return false; // Skip same transaction and non-refunds
+          if (i === index || !t.isCredit) return false; // Skip same transaction and non-credits
           
           const refundMerchant = extractMerchant(t.description);
           const daysDiff = Math.abs(transaction.date - t.date) / (1000 * 60 * 60 * 24);
@@ -425,15 +426,15 @@ const FinancialTracker = () => {
     return transactions.filter(t => {
       // Keep all transactions that don't have matches
       if (!matches.has(t.id)) return true;
-      
-      // For matched pairs, keep only the charge (positive amount) but mark it as refunded
-      if (t.amount > 0) {
+
+      // For matched pairs, keep only the charge (expense) but mark it as refunded
+      if (t.isExpense) {
         t.isRefunded = true;
         t.netAmount = 0; // This charge was refunded, so net spending is 0
         return true;
       }
-      
-      // Hide the refund transaction (negative amount) since we're showing net
+
+      // Hide the refund transaction (credit) since we're showing net
       return false;
     });
   }, [findMatchingRefunds, showRefundMatching]);
@@ -475,7 +476,7 @@ const FinancialTracker = () => {
               user: userName,
               isExpense: amount > 0, // For credit cards, positive amounts are spending/charges
               isCredit: amount < 0,   // Negative amounts are credits/refunds
-              isImmutableCategory: amount < 0 // Mark credits as having immutable categories
+              isImmutableCategory: false // Allow editing all categories
             };
           }).filter(t => t.date && !isNaN(t.date.getTime()) && t.amount !== 0);
 
@@ -489,25 +490,83 @@ const FinancialTracker = () => {
     setIsProcessing(true);
     const newTransactions = [];
 
+    console.log('Files to process:', files.length);
+    files.forEach((f, i) => console.log(`  ${i}: ${f.name} (${f.type || 'unknown type'}) - path: ${f.webkitRelativePath || 'no path'}`));
+
     for (const file of files) {
       try {
-        const content = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = (e) => resolve(e.target.result);
-          reader.onerror = reject;
-          reader.readAsText(file);
-        });
+        // Check if file is a PDF
+        if (isPDFFile(file)) {
+          console.log('Processing PDF file:', file.name, 'webkitRelativePath:', file.webkitRelativePath);
+          const pdfResult = await parsePDFStatement(file);
+          console.log('PDF parsed:', pdfResult.transactions.length, 'transactions found');
+          if (pdfResult.transactions.length > 0) {
+            console.log('First transaction:', pdfResult.transactions[0]);
+            console.log('Last transaction:', pdfResult.transactions[pdfResult.transactions.length - 1]);
+          }
 
-        const transactions = await parseStatement(file, content);
-        newTransactions.push(...transactions);
+          const userName = extractUserFromFile(file);
+
+          // Convert PDF transactions to our format
+          const transactions = pdfResult.transactions.map((t, index) => {
+            const amount = t.amount;
+            const date = new Date(t.date);
+            const uniqueId = `${file.name}-${date.getTime()}-${t.description.substring(0, 20).replace(/[^a-zA-Z0-9]/g, '')}-${Math.abs(amount)}-${index}`;
+
+            // Use isExpense from PDF parser (based on section: Standard Purchases vs Payments/Credits)
+            const isExpense = t.isExpense;
+            const isCredit = !isExpense;
+
+            // Determine category based on whether it's an expense or credit
+            let category;
+            if (isExpense) {
+              category = categorizeTransaction(t.description, amount);
+            } else {
+              // For credits: check if it's a payment or a refund/credit
+              category = t.description.toLowerCase().includes('payment') ? 'Payment' : 'Credits/Refunds';
+            }
+
+            return {
+              id: uniqueId,
+              date: date,
+              description: t.description,
+              amount: Math.abs(amount),
+              category,
+              source: file.name,
+              user: userName,
+              isExpense,
+              isCredit,
+              isImmutableCategory: false // Allow editing all categories
+            };
+          }).filter(t => t.date && !isNaN(t.date.getTime()) && t.amount !== 0);
+
+          newTransactions.push(...transactions);
+        } else {
+          // Handle CSV files as before
+          const content = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.onerror = reject;
+            reader.readAsText(file);
+          });
+
+          const transactions = await parseStatement(file, content);
+          newTransactions.push(...transactions);
+        }
       } catch (error) {
         console.error(`Error processing ${file.name}:`, error);
       }
     }
 
-    const allTrans = [...allTransactions, ...newTransactions].sort((a, b) => a.date - b.date);
+    // Deduplicate transactions by ID
+    const existingIds = new Set(allTransactions.map(t => t.id));
+    const uniqueNewTransactions = newTransactions.filter(t => !existingIds.has(t.id));
+
+    console.log(`Deduplication: ${newTransactions.length} new, ${uniqueNewTransactions.length} unique (${newTransactions.length - uniqueNewTransactions.length} duplicates skipped)`);
+
+    const allTrans = [...allTransactions, ...uniqueNewTransactions].sort((a, b) => a.date - b.date);
     setAllTransactions(allTrans);
-    setStatements(prev => [...prev, ...newTransactions]);
+    setStatements(prev => [...prev, ...uniqueNewTransactions]);
 
     // Extract unique users from all transactions
     const users = [...new Set(allTrans.map(t => t.user))].sort();
@@ -540,15 +599,15 @@ const FinancialTracker = () => {
 
       const monthData = monthlyMap.get(monthYear);
 
-      // For credit card statements: positive amounts are charges/spending, negative amounts are credits
-      if (transaction.amount > 0) {
+      // For credit card statements: isExpense=true means charges/spending, isCredit=true means credits/payments
+      if (transaction.isExpense) {
         // Use netAmount if available (for refunded transactions), otherwise use full amount
         const effectiveAmount = transaction.isRefunded ? (transaction.netAmount || 0) : transaction.amount;
         monthData.expenses += effectiveAmount;
-      } else {
+      } else if (transaction.isCredit) {
         // Don't count user payments as credits (they're payments towards the bill)
         if (transaction.category !== 'Payment') {
-          monthData.credits += Math.abs(transaction.amount);
+          monthData.credits += transaction.amount;
         }
       }
 
@@ -560,15 +619,15 @@ const FinancialTracker = () => {
 
       const catData = categoryMap.get(category);
 
-      if (transaction.amount > 0) {
-        // Track spending (positive amounts)
+      if (transaction.isExpense) {
+        // Track spending (expenses only)
         const effectiveAmount = transaction.isRefunded ? (transaction.netAmount || 0) : transaction.amount;
         catData.total += effectiveAmount;
         if (effectiveAmount > 0) catData.count += 1;
-      } else {
-        // Track credits (negative amounts, excluding payments)
+      } else if (transaction.isCredit) {
+        // Track credits (excluding payments)
         if (transaction.category !== 'Payment') {
-          catData.credits += Math.abs(transaction.amount);
+          catData.credits += transaction.amount;
         }
       }
 
@@ -599,7 +658,7 @@ const FinancialTracker = () => {
     const topCategories = categoryArray.slice(0, 8).map(c => c.name); // Top 8 categories for cleaner visualization
 
     netTransactions.forEach(transaction => {
-      if (transaction.amount <= 0) return; // Only track spending, not credits
+      if (!transaction.isExpense) return; // Only track spending, not credits/payments
 
       const monthYear = `${transaction.date.getFullYear()}-${String(transaction.date.getMonth() + 1).padStart(2, '0')}`;
       const category = transaction.category;
@@ -667,7 +726,7 @@ const FinancialTracker = () => {
     // Update the learning model
     updateLearningModel(targetTransaction.description, newCategory);
 
-    // Update ALL transactions from the same merchant
+    // Update ALL transactions from the same or similar merchant (fuzzy matching)
     const updatedTransactions = allTransactions.map(t => {
       if (t.isImmutableCategory) {
         return t; // Don't change immutable categories
@@ -675,9 +734,18 @@ const FinancialTracker = () => {
 
       const currentMerchant = extractMerchant(t.description.toLowerCase());
 
-      // If same merchant, update category
+      // If same merchant (exact match), update category
       if (currentMerchant === merchant) {
-        console.log(`Updating transaction ${t.id} from ${t.category} to ${newCategory}`);
+        console.log(`Updating transaction ${t.id} from ${t.category} to ${newCategory} (exact match)`);
+        return { ...t, category: newCategory };
+      }
+
+      // Also check fuzzy match - if first word matches and it's the same category we're changing FROM
+      const merchantWords = merchant.split(' ');
+      const currentWords = currentMerchant.split(' ');
+      if (merchantWords[0] === currentWords[0] && merchantWords[0].length >= 4 &&
+          t.category === targetTransaction.category) {
+        console.log(`Updating transaction ${t.id} from ${t.category} to ${newCategory} (fuzzy match: ${currentMerchant})`);
         return { ...t, category: newCategory };
       }
 
@@ -695,10 +763,11 @@ const FinancialTracker = () => {
     // Force a re-render to update the category lists
     setRefreshKey(prev => prev + 1);
 
-    // Show feedback to user
+    // Show feedback to user - count all updated (exact + fuzzy matches)
+    const merchantFirstWord = merchant.split(' ')[0];
     const updatedCount = updatedTransactions.filter(t => {
       const m = extractMerchant(t.description.toLowerCase());
-      return m === merchant && !t.isImmutableCategory;
+      return (m === merchant || (m.split(' ')[0] === merchantFirstWord && merchantFirstWord.length >= 4)) && !t.isImmutableCategory;
     }).length;
 
     // Show notification
@@ -815,12 +884,12 @@ const FinancialTracker = () => {
 
       const monthData = monthlyMap.get(monthYear);
 
-      if (transaction.amount > 0) {
+      if (transaction.isExpense) {
         const effectiveAmount = transaction.isRefunded ? (transaction.netAmount || 0) : transaction.amount;
         monthData.expenses += effectiveAmount;
-      } else {
+      } else if (transaction.isCredit) {
         if (transaction.category !== 'Payment') {
-          monthData.credits += Math.abs(transaction.amount);
+          monthData.credits += transaction.amount;
         }
       }
     });
@@ -855,13 +924,13 @@ const FinancialTracker = () => {
 
       const catData = categoryMap.get(category);
 
-      if (transaction.amount > 0) {
+      if (transaction.isExpense) {
         const effectiveAmount = transaction.isRefunded ? (transaction.netAmount || 0) : transaction.amount;
         catData.total += effectiveAmount;
         if (effectiveAmount > 0) catData.count += 1;
-      } else {
+      } else if (transaction.isCredit) {
         if (transaction.category !== 'Payment') {
-          catData.credits += Math.abs(transaction.amount);
+          catData.credits += transaction.amount;
         }
       }
 
@@ -894,7 +963,7 @@ const FinancialTracker = () => {
     const topCategories = getFilteredCategoryData().slice(0, 8).map(c => c.name);
 
     netTransactions.forEach(transaction => {
-      if (transaction.amount <= 0) return;
+      if (!transaction.isExpense) return; // Only track spending, not credits/payments
 
       const monthYear = `${transaction.date.getFullYear()}-${String(transaction.date.getMonth() + 1).padStart(2, '0')}`;
       const category = transaction.category;
@@ -957,8 +1026,9 @@ const FinancialTracker = () => {
 
   const handleDrop = useCallback((e) => {
     e.preventDefault();
-    const files = Array.from(e.dataTransfer.files).filter(file => 
-      file.type === 'text/csv' || file.name.endsWith('.csv')
+    const files = Array.from(e.dataTransfer.files).filter(file =>
+      file.type === 'text/csv' || file.name.endsWith('.csv') ||
+      file.type === 'application/pdf' || file.name.endsWith('.pdf')
     );
     if (files.length > 0) {
       handleFileUpload(files);
@@ -1094,11 +1164,11 @@ const FinancialTracker = () => {
           >
             <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
             <h3 className="text-lg font-medium text-gray-700 mb-2">Upload Statements Folder</h3>
-            <p className="text-gray-500 mb-4">Select your Statements folder to automatically organize by user. AI learns from your categorization choices.</p>
+            <p className="text-gray-500 mb-4">Select your Statements folder to automatically organize by user. Supports CSV and PDF files. AI learns from your categorization choices.</p>
             <input
               type="file"
               multiple
-              accept=".csv"
+              accept=".csv,.pdf"
               onChange={handleFileInput}
               className="hidden"
               id="file-upload"
@@ -1719,15 +1789,15 @@ const FinancialTracker = () => {
                                 ) : (
                                   <span className={`px-2 py-1 rounded text-xs font-medium ${
                                     transaction.category === 'Credits/Refunds' ? 'bg-green-100 text-green-800' :
-                                    transaction.category === 'Other' ? 'bg-gray-100 text-gray-800' : 
-                                    learningModel.has(extractMerchant(transaction.description.toLowerCase())) ? 'bg-green-100 text-green-800' :
+                                    transaction.category === 'Other' ? 'bg-gray-100 text-gray-800' :
+                                    findMatchingMerchant(extractMerchant(transaction.description.toLowerCase()), learningModel) ? 'bg-green-100 text-green-800' :
                                     'bg-blue-100 text-blue-800'
                                   }`}>
                                     {transaction.category}
                                     {transaction.isImmutableCategory && (
                                       <span className="ml-1 text-xs">🔒</span>
                                     )}
-                                    {!transaction.isImmutableCategory && learningModel.has(extractMerchant(transaction.description.toLowerCase())) && (
+                                    {!transaction.isImmutableCategory && findMatchingMerchant(extractMerchant(transaction.description.toLowerCase()), learningModel) && (
                                       <Brain className="inline h-3 w-3 ml-1" title="AI Learned" />
                                     )}
                                   </span>
@@ -2063,14 +2133,14 @@ const FinancialTracker = () => {
                                                 transaction.category === 'Credits/Refunds' ? 'bg-green-100 text-green-800' :
                                                 transaction.category === 'Payment' ? 'bg-purple-100 text-purple-800' :
                                                 transaction.category === 'Other' ? 'bg-gray-100 text-gray-800' :
-                                                learningModel.has(extractMerchant(transaction.description.toLowerCase())) ? 'bg-green-100 text-green-800' :
+                                                findMatchingMerchant(extractMerchant(transaction.description.toLowerCase()), learningModel) ? 'bg-green-100 text-green-800' :
                                                 'bg-blue-100 text-blue-800'
                                               }`}>
                                                 {transaction.category}
                                                 {transaction.isImmutableCategory && (
                                                   <span className="ml-1 text-xs">🔒</span>
                                                 )}
-                                                {!transaction.isImmutableCategory && learningModel.has(extractMerchant(transaction.description.toLowerCase())) && (
+                                                {!transaction.isImmutableCategory && findMatchingMerchant(extractMerchant(transaction.description.toLowerCase()), learningModel) && (
                                                   <Brain className="inline h-3 w-3 ml-1" title="AI Learned" />
                                                 )}
                                               </span>
@@ -2156,8 +2226,8 @@ const FinancialTracker = () => {
                       <div className="flex items-center justify-between">
                         <span>Auto-categorization Rate</span>
                         <span className="font-bold">
-                          {allTransactions.length > 0 ? 
-                            Math.round((allTransactions.filter(t => learningModel.has(extractMerchant(t.description.toLowerCase()))).length / allTransactions.length) * 100) : 0}%
+                          {allTransactions.length > 0 ?
+                            Math.round((allTransactions.filter(t => findMatchingMerchant(extractMerchant(t.description.toLowerCase()), learningModel)).length / allTransactions.length) * 100) : 0}%
                         </span>
                       </div>
                       <div className="flex items-center justify-between">

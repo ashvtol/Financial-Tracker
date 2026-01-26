@@ -1,10 +1,10 @@
 export const PREDEFINED_CATEGORIES = [
-  'Digital Entertainment', 'Entertainment', 'Food & Dining', 'Groceries',
+  'Digital Entertainment', 'Entertainment', 'Food & Dining', 'Groceries', 'Whole Foods Groceries',
   'Transportation - Parking', 'Transportation - Cab/Rideshare', 'Transportation - Fuel',
   'Transportation - Tolls', 'Transportation - Public Transit', 'Transportation - Other',
   'Housing & Utilities', 'Shopping', 'Healthcare', 'Education', 'Travel', 'Investments',
   'Insurance', 'Bank Fees', 'Personal Care', 'Gifts & Donations',
-  'Subscriptions', 'Phone & Internet', 'Payment', 'Credits/Refunds', 'Other'
+  'Subscriptions', 'Phone & Internet', 'Payment', 'Credits/Refunds', 'Car Maintenance', 'Other'
 ];
 
 export const BASE_CATEGORIES = [
