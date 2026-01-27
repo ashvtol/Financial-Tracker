@@ -94,15 +94,34 @@ const calculateSimilarity = (str1: string, str2: string): number => {
   return 1 - distance / maxLen;
 };
 
+// Payment platforms where each transaction is different (can't fuzzy match)
+const PAYMENT_PLATFORMS = [
+  'venmo', 'zelle', 'paypal', 'cashapp', 'cash app', 'apple cash',
+  'wire transfer', 'wire from', 'capital one transfer'
+];
+
+// Check if merchant is a generic payment platform that shouldn't be fuzzy matched
+const isPaymentPlatform = (merchant: string): boolean => {
+  const lower = merchant.toLowerCase();
+  return PAYMENT_PLATFORMS.some(platform => lower.includes(platform));
+};
+
 // Find best matching merchant from learning model using fuzzy matching
 export const findMatchingMerchant = (
   merchant: string,
   learningModel: Map<string, string>,
   threshold: number = 0.8  // Increased threshold for more precise matching
 ): { key: string; category: string } | null => {
-  // First try exact match
+  // First try exact match (always allowed, even for payment platforms)
   if (learningModel.has(merchant)) {
     return { key: merchant, category: learningModel.get(merchant)! };
+  }
+
+  // Don't fuzzy match payment platforms - each transaction is different
+  // (e.g., "venmo 1234" and "venmo 5678" are different merchants/purposes)
+  if (isPaymentPlatform(merchant)) {
+    console.log(`Skipping fuzzy match for payment platform: "${merchant}"`);
+    return null;
   }
 
   // Fuzzy match - find best match above threshold
