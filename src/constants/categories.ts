@@ -4,7 +4,8 @@ export const PREDEFINED_CATEGORIES = [
   'Transportation - Tolls', 'Transportation - Public Transit', 'Transportation - Other',
   'Housing & Utilities', 'Shopping', 'Healthcare', 'Education', 'Travel', 'Investments',
   'Insurance', 'Bank Fees', 'Personal Care', 'Gifts & Donations',
-  'Subscriptions', 'Phone & Internet', 'Payment', 'Credits/Refunds', 'Car Maintenance', 'Other'
+  'Subscriptions', 'Phone & Internet', 'Payment', 'Credits/Refunds', 'Car Maintenance',
+  'Income - Salary', 'Income - Interest', 'Income - Other', 'Transfer', 'Other'
 ];
 
 export const BASE_CATEGORIES = [

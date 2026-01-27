@@ -9,7 +9,8 @@ interface ParsedTransaction {
   date: string;
   description: string;
   amount: number;
-  isExpense: boolean;  // true for purchases, false for payments/credits/adjustments
+  isExpense: boolean;  // true for purchases/withdrawals, false for payments/credits/deposits
+  isIncome?: boolean;  // true for income/deposits (from checking/debit statements)
 }
 
 interface PDFParseResult {
@@ -285,6 +286,160 @@ const parseCitiStatement = (text: string): PDFParseResult => {
   };
 };
 
+// Parse Citi Debit/Checking statement
+const parseCitiDebitStatement = (text: string): PDFParseResult => {
+  const transactions: ParsedTransaction[] = [];
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+
+  // Find statement period
+  const periodMatch = text.match(/Period\s+(\w+\s+\d{1,2})\s*[-–]\s*(\w+\s+\d{1,2},?\s*\d{4})/i);
+  const billingPeriod = periodMatch ? `${periodMatch[1]} - ${periodMatch[2]}` : undefined;
+
+  // Get year from statement period
+  let statementYear = new Date().getFullYear();
+  if (periodMatch) {
+    const yearMatch = periodMatch[2].match(/(\d{4})/);
+    if (yearMatch) {
+      statementYear = parseInt(yearMatch[1]);
+    }
+  }
+
+  console.log('PDF Parser (Debit): Statement period:', billingPeriod, 'Year:', statementYear);
+
+  // Log first 50 lines for debugging
+  console.log('PDF Parser (Debit): First 50 lines:');
+  for (let j = 0; j < Math.min(50, lines.length); j++) {
+    console.log(`  [${j}]: ${lines[j]}`);
+  }
+
+  // Track if we're in the Checking Activity section
+  let inCheckingActivity = false;
+
+  // Pattern for debit transactions: Date Description Amount (with possible balance)
+  // Format: "MM/DD Description $X,XXX.XX" or amounts without $ sign
+  // The columns are: Date, Description, Amount Subtracted, Amount Added, Balance
+
+  // Pattern to match date at start of line
+  const datePattern = /^(\d{1,2}\/\d{1,2})\s+(.+)/;
+
+  // Pattern to match amounts (with or without $ sign, with optional negative)
+  const amountPattern = /(-?\$?[\d,]+\.\d{2})/g;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const normalizedLine = line.replace(/\s+/g, ' ').trim();
+
+    // Detect Checking Activity section
+    if (/checking\s*activity/i.test(normalizedLine)) {
+      inCheckingActivity = true;
+      console.log('PDF Parser (Debit): Entering Checking Activity section');
+      continue;
+    }
+
+    // Detect end of Checking Activity (next major section)
+    if (inCheckingActivity && /^(savings\s*activity|summary\s*of|account\s*summary)/i.test(normalizedLine)) {
+      inCheckingActivity = false;
+      console.log('PDF Parser (Debit): Exiting Checking Activity section');
+      continue;
+    }
+
+    // Skip header rows
+    if (/^date\s+description/i.test(normalizedLine) ||
+        /amount\s*(subtracted|added)/i.test(normalizedLine) ||
+        /^balance$/i.test(normalizedLine)) {
+      continue;
+    }
+
+    if (!inCheckingActivity) continue;
+
+    // Try to parse transaction line
+    const dateMatch = line.match(datePattern);
+    if (dateMatch) {
+      const dateStr = dateMatch[1];
+      const rest = dateMatch[2];
+
+      // Extract all amounts from the line
+      const amounts: number[] = [];
+      let match;
+      const restForAmounts = rest;
+      const amountRegex = /(-?\$?[\d,]+\.\d{2})/g;
+      while ((match = amountRegex.exec(restForAmounts)) !== null) {
+        const amountStr = match[1].replace(/[$,]/g, '');
+        amounts.push(parseFloat(amountStr));
+      }
+
+      if (amounts.length === 0) continue;
+
+      // Extract description (everything before the first amount)
+      const firstAmountMatch = rest.match(/(-?\$?[\d,]+\.\d{2})/);
+      let description = firstAmountMatch
+        ? rest.substring(0, firstAmountMatch.index).trim()
+        : rest.trim();
+
+      // Clean up description
+      description = description.replace(/\s+/g, ' ').trim();
+      if (!description || description.length < 2) continue;
+
+      // Parse the date
+      const [month, day] = dateStr.split('/').map(Number);
+      const fullDate = `${statementYear}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+      // Determine if this is income (amount added) or expense (amount subtracted)
+      // In checking statements:
+      // - If there are 3 amounts: [subtracted, added, balance]
+      // - If there are 2 amounts: could be [subtracted, balance] or [added, balance]
+      // - Usually, the structure shows the amount in the appropriate column
+
+      // Heuristic: Look at the position of amounts in the line
+      // Or check if description suggests income
+      const incomeKeywords = /payroll|direct\s*dep|deposit|transfer\s*from|refund|interest|dividend/i;
+      const isLikelyIncome = incomeKeywords.test(description);
+
+      // Use the first non-zero amount as the transaction amount
+      // For checking statements, we'll use position-based logic
+      let amount = amounts[0];
+      let isExpense = true;
+      let isIncome = false;
+
+      // If we have multiple amounts, try to determine which is subtracted vs added
+      if (amounts.length >= 2) {
+        // Usually format is: [subtracted] [added] [balance]
+        // If first amount is 0 or missing, second is the added amount
+        if (amounts[0] === 0 && amounts[1] > 0) {
+          amount = amounts[1];
+          isExpense = false;
+          isIncome = true;
+        } else if (amounts[0] > 0) {
+          amount = amounts[0];
+          isExpense = true;
+          isIncome = false;
+        }
+      } else if (isLikelyIncome) {
+        isExpense = false;
+        isIncome = true;
+      }
+
+      console.log(`PDF Parser (Debit): Transaction: ${fullDate} | ${description.substring(0, 30)}... | $${amount} | ${isIncome ? 'INCOME' : 'EXPENSE'}`);
+
+      transactions.push({
+        date: fullDate,
+        description,
+        amount: Math.abs(amount),
+        isExpense,
+        isIncome
+      });
+    }
+  }
+
+  console.log(`PDF Parser (Debit): Found ${transactions.length} transactions (${transactions.filter(t => t.isExpense).length} expenses, ${transactions.filter(t => t.isIncome).length} income)`);
+
+  return {
+    transactions,
+    statementType: 'Citi Debit',
+    billingPeriod
+  };
+};
+
 // Parse American Express statement (existing CSV format works, this is for future PDF support)
 const parseAmexStatement = (text: string): PDFParseResult => {
   // Amex PDF parsing logic would go here
@@ -298,7 +453,16 @@ const parseAmexStatement = (text: string): PDFParseResult => {
 const detectAndParseStatement = (text: string): PDFParseResult => {
   const textLower = text.toLowerCase();
 
+  // Check for Citi Debit/Checking statement first (more specific)
+  if ((textLower.includes('citi') || textLower.includes('citibank')) &&
+      (textLower.includes('checking activity') || textLower.includes('deposit accounts') || textLower.includes('checking account'))) {
+    console.log('PDF Parser: Detected Citi Debit/Checking statement');
+    return parseCitiDebitStatement(text);
+  }
+
+  // Citi credit card statement
   if (textLower.includes('citi') || textLower.includes('costco anywhere visa')) {
+    console.log('PDF Parser: Detected Citi Credit Card statement');
     return parseCitiStatement(text);
   }
 

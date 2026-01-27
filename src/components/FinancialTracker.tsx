@@ -513,13 +513,28 @@ const FinancialTracker = () => {
             const date = new Date(t.date);
             const uniqueId = `${file.name}-${date.getTime()}-${t.description.substring(0, 20).replace(/[^a-zA-Z0-9]/g, '')}-${Math.abs(amount)}-${index}`;
 
-            // Use isExpense from PDF parser (based on section: Standard Purchases vs Payments/Credits)
+            // Use isExpense and isIncome from PDF parser
             const isExpense = t.isExpense;
-            const isCredit = !isExpense;
+            const isIncome = t.isIncome || false;
+            const isCredit = !isExpense || isIncome;
 
-            // Determine category based on whether it's an expense or credit
+            // Determine category based on transaction type
             let category;
-            if (isExpense) {
+            if (isIncome) {
+              // Categorize income transactions
+              const desc = t.description.toLowerCase();
+              if (desc.includes('payroll') || desc.includes('direct dep') || desc.includes('salary')) {
+                category = 'Income - Salary';
+              } else if (desc.includes('transfer')) {
+                category = 'Transfer';
+              } else if (desc.includes('interest')) {
+                category = 'Income - Interest';
+              } else if (desc.includes('refund')) {
+                category = 'Credits/Refunds';
+              } else {
+                category = 'Income - Other';
+              }
+            } else if (isExpense) {
               category = categorizeTransaction(t.description, amount);
             } else {
               // For credits: check if it's a payment or a refund/credit
@@ -536,6 +551,7 @@ const FinancialTracker = () => {
               user: userName,
               isExpense,
               isCredit,
+              isIncome,
               isImmutableCategory: false // Allow editing all categories
             };
           }).filter(t => t.date && !isNaN(t.date.getTime()) && t.amount !== 0);
