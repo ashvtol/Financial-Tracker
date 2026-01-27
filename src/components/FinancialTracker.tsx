@@ -726,7 +726,8 @@ const FinancialTracker = () => {
     // Update the learning model
     updateLearningModel(targetTransaction.description, newCategory);
 
-    // Update ALL transactions from the same or similar merchant (fuzzy matching)
+    // Update ALL transactions from the SAME merchant (exact match only)
+    // This prevents accidentally updating similar but different merchants (e.g., Amazon vs Amazon Whole Foods)
     const updatedTransactions = allTransactions.map(t => {
       if (t.isImmutableCategory) {
         return t; // Don't change immutable categories
@@ -734,18 +735,9 @@ const FinancialTracker = () => {
 
       const currentMerchant = extractMerchant(t.description.toLowerCase());
 
-      // If same merchant (exact match), update category
+      // Only update exact merchant matches
       if (currentMerchant === merchant) {
-        console.log(`Updating transaction ${t.id} from ${t.category} to ${newCategory} (exact match)`);
-        return { ...t, category: newCategory };
-      }
-
-      // Also check fuzzy match - if first word matches and it's the same category we're changing FROM
-      const merchantWords = merchant.split(' ');
-      const currentWords = currentMerchant.split(' ');
-      if (merchantWords[0] === currentWords[0] && merchantWords[0].length >= 4 &&
-          t.category === targetTransaction.category) {
-        console.log(`Updating transaction ${t.id} from ${t.category} to ${newCategory} (fuzzy match: ${currentMerchant})`);
+        console.log(`Updating transaction ${t.id} from ${t.category} to ${newCategory}`);
         return { ...t, category: newCategory };
       }
 
@@ -753,8 +745,6 @@ const FinancialTracker = () => {
     });
 
     console.log('Updated transactions count:', updatedTransactions.filter(t => t.category === newCategory).length);
-    console.log('All transactions before update:', allTransactions.length);
-    console.log('Updated transactions:', updatedTransactions.length);
 
     // Update state - useEffect will automatically reprocess data
     setAllTransactions([...updatedTransactions]); // Create new array reference
@@ -763,11 +753,10 @@ const FinancialTracker = () => {
     // Force a re-render to update the category lists
     setRefreshKey(prev => prev + 1);
 
-    // Show feedback to user - count all updated (exact + fuzzy matches)
-    const merchantFirstWord = merchant.split(' ')[0];
+    // Show feedback to user - count exact matches only
     const updatedCount = updatedTransactions.filter(t => {
       const m = extractMerchant(t.description.toLowerCase());
-      return (m === merchant || (m.split(' ')[0] === merchantFirstWord && merchantFirstWord.length >= 4)) && !t.isImmutableCategory;
+      return m === merchant && !t.isImmutableCategory;
     }).length;
 
     // Show notification

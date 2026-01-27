@@ -9,15 +9,44 @@ const calculateSimilarity = (str1: string, str2: string): number => {
   if (str1 === str2) return 1;
   if (str1.length === 0 || str2.length === 0) return 0;
 
-  // Check if one contains the other
-  if (str1.includes(str2) || str2.includes(str1)) return 0.9;
-
-  // Check if first words match
   const words1 = str1.split(' ');
   const words2 = str2.split(' ');
-  if (words1[0] === words2[0] && words1[0].length >= 3) return 0.8;
 
-  // Levenshtein distance for fuzzy matching
+  // Check if one contains the other (e.g., "costco" matches "costco gas")
+  if (str1.includes(str2) || str2.includes(str1)) return 0.95;
+
+  // For multi-word merchants, require BOTH words to be similar
+  if (words1.length >= 2 && words2.length >= 2) {
+    const firstWordMatch = words1[0] === words2[0];
+    const secondWordMatch = words1[1] === words2[1];
+
+    // Both words match exactly
+    if (firstWordMatch && secondWordMatch) return 1;
+
+    // First word matches, check if second words are similar
+    if (firstWordMatch) {
+      // Calculate similarity of second words
+      const w1 = words1[1];
+      const w2 = words2[1];
+
+      // If second words share a common prefix (at least 4 chars), consider similar
+      const minLen = Math.min(w1.length, w2.length);
+      let commonPrefix = 0;
+      for (let i = 0; i < minLen; i++) {
+        if (w1[i] === w2[i]) commonPrefix++;
+        else break;
+      }
+
+      if (commonPrefix >= 4) return 0.9;  // e.g., "wholefds int" vs "wholefds mkt" - NO (different after "wholefds")
+      if (commonPrefix >= 3 && minLen <= 5) return 0.85;
+
+      // First word match but second words are very different - NOT a match
+      // e.g., "amazon.com amzn.com/bill" vs "amazon.com hw4z69ja3amzn.com/bill"
+      return 0.5; // Below threshold, won't match
+    }
+  }
+
+  // Single word or no first-word match - use Levenshtein distance
   const matrix: number[][] = [];
   for (let i = 0; i <= str1.length; i++) {
     matrix[i] = [i];
@@ -44,7 +73,7 @@ const calculateSimilarity = (str1: string, str2: string): number => {
 export const findMatchingMerchant = (
   merchant: string,
   learningModel: Map<string, string>,
-  threshold: number = 0.7
+  threshold: number = 0.8  // Increased threshold for more precise matching
 ): { key: string; category: string } | null => {
   // First try exact match
   if (learningModel.has(merchant)) {
