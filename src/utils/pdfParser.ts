@@ -330,7 +330,12 @@ const parseCitiDebitStatementWithPositions = (
 
   let inCheckingActivity = false;
 
-  for (const { items, text: lineText } of linesWithPositions) {
+  // First pass: identify transaction start lines and their indices
+  const transactionStarts: Array<{ index: number; dateStr: string }> = [];
+
+  for (let i = 0; i < linesWithPositions.length; i++) {
+    const { text: lineText } = linesWithPositions[i];
+
     // Detect Checking Activity section
     if (/checking\s*activity/i.test(lineText)) {
       inCheckingActivity = true;
@@ -347,13 +352,17 @@ const parseCitiDebitStatementWithPositions = (
 
     if (!inCheckingActivity) continue;
 
-    // Skip non-transaction lines
-    if (!/^\d{1,2}\/\d{1,2}/.test(lineText)) continue;
-
-    // Extract date
+    // Check if this is a transaction start line (has date)
     const dateMatch = lineText.match(/^(\d{1,2}\/\d{1,2})/);
-    if (!dateMatch) continue;
-    const dateStr = dateMatch[1];
+    if (dateMatch) {
+      transactionStarts.push({ index: i, dateStr: dateMatch[1] });
+    }
+  }
+
+  // Second pass: process each transaction with its continuation lines
+  for (let t = 0; t < transactionStarts.length; t++) {
+    const { index: startIdx, dateStr } = transactionStarts[t];
+    const nextStartIdx = t < transactionStarts.length - 1 ? transactionStarts[t + 1].index : linesWithPositions.length;
 
     // Parse using X positions - columns may vary by PDF
     // Amount Subtracted: typically x ~ 340-430
@@ -366,18 +375,23 @@ const parseCitiDebitStatementWithPositions = (
     // Collect all amounts with their positions for smarter detection
     const amounts: Array<{ amount: number; x: number }> = [];
 
-    for (const item of items) {
-      const x = item.x;
-      const itemText = item.str.trim();
+    // Process all lines belonging to this transaction (start line + continuation lines)
+    for (let lineIdx = startIdx; lineIdx < nextStartIdx; lineIdx++) {
+      const { items } = linesWithPositions[lineIdx];
 
-      // Check if it's a number (amount)
-      const numMatch = itemText.match(/^([\d,]+\.\d{2})$/);
+      for (const item of items) {
+        const x = item.x;
+        const itemText = item.str.trim();
 
-      if (numMatch) {
-        const amount = parseFloat(numMatch[1].replace(/,/g, ''));
-        amounts.push({ amount, x });
-      } else if (x >= 70 && x < 350 && itemText.length > 0 && !/^\d{1,2}\/\d{1,2}$/.test(itemText)) {
-        description += itemText + ' ';
+        // Check if it's a number (amount)
+        const numMatch = itemText.match(/^([\d,]+\.\d{2})$/);
+
+        if (numMatch) {
+          const amount = parseFloat(numMatch[1].replace(/,/g, ''));
+          amounts.push({ amount, x });
+        } else if (x >= 70 && x < 350 && itemText.length > 0 && !/^\d{1,2}\/\d{1,2}$/.test(itemText)) {
+          description += itemText + ' ';
+        }
       }
     }
 
