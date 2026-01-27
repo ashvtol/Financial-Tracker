@@ -843,14 +843,16 @@ const FinancialTracker = () => {
     }
     
     if (dateFilter.start) {
-      const startDate = new Date(dateFilter.start);
-      startDate.setHours(0, 0, 0, 0);
+      // Parse date string as local date (not UTC) to avoid timezone issues
+      const [year, month, day] = dateFilter.start.split('-').map(Number);
+      const startDate = new Date(year, month - 1, day, 0, 0, 0, 0);
       filtered = filtered.filter(t => t.date >= startDate);
     }
 
     if (dateFilter.end) {
-      const endDate = new Date(dateFilter.end);
-      endDate.setHours(23, 59, 59, 999); // Include the entire end day
+      // Parse date string as local date (not UTC) to avoid timezone issues
+      const [year, month, day] = dateFilter.end.split('-').map(Number);
+      const endDate = new Date(year, month - 1, day, 23, 59, 59, 999);
       filtered = filtered.filter(t => t.date <= endDate);
     }
     
