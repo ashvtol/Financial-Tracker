@@ -615,9 +615,10 @@ const FinancialTracker = () => {
 
     netTransactions.forEach(transaction => {
       const monthYear = `${transaction.date.getFullYear()}-${String(transaction.date.getMonth() + 1).padStart(2, '0')}`;
-      
+      const isIncomeTransaction = transaction.isIncome === true || transaction.category?.startsWith('Income');
+
       if (!monthlyMap.has(monthYear)) {
-        monthlyMap.set(monthYear, { expenses: 0, credits: 0, month: monthYear });
+        monthlyMap.set(monthYear, { expenses: 0, credits: 0, income: 0, month: monthYear });
       }
 
       const monthData = monthlyMap.get(monthYear);
@@ -627,6 +628,9 @@ const FinancialTracker = () => {
         // Use netAmount if available (for refunded transactions), otherwise use full amount
         const effectiveAmount = transaction.isRefunded ? (transaction.netAmount || 0) : transaction.amount;
         monthData.expenses += effectiveAmount;
+      } else if (isIncomeTransaction) {
+        // Track income separately (salary, interest, etc.)
+        monthData.income += transaction.amount;
       } else if (transaction.isCredit) {
         // Don't count user payments as credits (they're payments towards the bill)
         if (transaction.category !== 'Payment') {
@@ -660,7 +664,8 @@ const FinancialTracker = () => {
     const monthlyArray = Array.from(monthlyMap.values())
       .map(month => ({
         ...month,
-        netSpending: month.expenses - month.credits, // Net spending after credits applied
+        income: month.income || 0,
+        netSpending: month.expenses - month.credits - (month.income || 0), // Net spending after credits and income
         date: new Date(month.month + '-01').toLocaleDateString('en-US', { year: 'numeric', month: 'short' })
       }))
       .sort((a, b) => new Date(a.month) - new Date(b.month));
@@ -838,11 +843,15 @@ const FinancialTracker = () => {
     }
     
     if (dateFilter.start) {
-      filtered = filtered.filter(t => t.date >= new Date(dateFilter.start));
+      const startDate = new Date(dateFilter.start);
+      startDate.setHours(0, 0, 0, 0);
+      filtered = filtered.filter(t => t.date >= startDate);
     }
-    
+
     if (dateFilter.end) {
-      filtered = filtered.filter(t => t.date <= new Date(dateFilter.end));
+      const endDate = new Date(dateFilter.end);
+      endDate.setHours(23, 59, 59, 999); // Include the entire end day
+      filtered = filtered.filter(t => t.date <= endDate);
     }
     
     return filtered.sort((a, b) => b.date - a.date);
@@ -853,10 +862,12 @@ const FinancialTracker = () => {
 
     const filtered = getFilteredTransactions();
     const expenses = filtered.filter(t => t.isExpense && !t.isCredit);
-    // Only count actual refunds/credits, not payments
+    // Only count actual refunds/credits, not payments or income
     const credits = filtered.filter(t => t.category === 'Credits/Refunds');
+    // Income transactions (salary, interest, etc.)
+    const income = filtered.filter(t => t.isIncome === true || t.category?.startsWith('Income'));
 
-    // Calculate category totals
+    // Calculate category totals for expenses
     const categoryTotals = new Map<string, number>();
     expenses.forEach(t => {
       const current = categoryTotals.get(t.category) || 0;
@@ -870,16 +881,19 @@ const FinancialTracker = () => {
 
     const totalExpenditure = expenses.reduce((sum, t) => sum + t.amount, 0);
     const totalCredits = credits.reduce((sum, t) => sum + Math.abs(t.amount), 0);
-    const netSpending = totalExpenditure - totalCredits;
+    const totalIncome = income.reduce((sum, t) => sum + t.amount, 0);
+    const netSpending = totalExpenditure - totalCredits - totalIncome;
 
     return {
       categories: sortedCategories,
       totalExpenditure,
       totalCredits,
+      totalIncome,
       netSpending,
       transactionCount: filtered.length,
       expenseCount: expenses.length,
-      creditCount: credits.length
+      creditCount: credits.length,
+      incomeCount: income.length
     };
   };
 
@@ -907,14 +921,17 @@ const FinancialTracker = () => {
       const monthYear = `${transaction.date.getFullYear()}-${String(transaction.date.getMonth() + 1).padStart(2, '0')}`;
 
       if (!monthlyMap.has(monthYear)) {
-        monthlyMap.set(monthYear, { expenses: 0, credits: 0, month: monthYear });
+        monthlyMap.set(monthYear, { expenses: 0, credits: 0, income: 0, month: monthYear });
       }
 
       const monthData = monthlyMap.get(monthYear);
+      const isIncomeTransaction = transaction.isIncome === true || transaction.category?.startsWith('Income');
 
       if (transaction.isExpense) {
         const effectiveAmount = transaction.isRefunded ? (transaction.netAmount || 0) : transaction.amount;
         monthData.expenses += effectiveAmount;
+      } else if (isIncomeTransaction) {
+        monthData.income += transaction.amount;
       } else if (transaction.isCredit) {
         if (transaction.category !== 'Payment') {
           monthData.credits += transaction.amount;
@@ -925,7 +942,8 @@ const FinancialTracker = () => {
     return Array.from(monthlyMap.values())
       .map(month => ({
         ...month,
-        netSpending: month.expenses - month.credits,
+        income: month.income || 0,
+        netSpending: month.expenses - month.credits - month.income,
         date: new Date(month.month + '-01').toLocaleDateString('en-US', { year: 'numeric', month: 'short' })
       }))
       .sort((a, b) => new Date(a.month) - new Date(b.month));
@@ -1350,50 +1368,71 @@ const FinancialTracker = () => {
             <div className="p-6">
               {activeTab === 'overview' && (
                 <>
-                  {/* Summary Cards */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                    <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg p-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm text-red-600">Total Charges</p>
-                          <p className="text-2xl font-bold text-red-700">{formatCurrency(summary.totalExpenses)}</p>
+                  {/* Summary Cards - use filtered data based on time range */}
+                  {(() => {
+                    const filteredMonthly = getFilteredMonthlyData();
+                    const filteredExpenses = filteredMonthly.reduce((sum, month) => sum + month.expenses, 0);
+                    const filteredCredits = filteredMonthly.reduce((sum, month) => sum + month.credits, 0);
+                    const filteredIncome = filteredMonthly.reduce((sum, month) => sum + (month.income || 0), 0);
+                    const filteredNetSpending = filteredExpenses - filteredCredits - filteredIncome;
+                    const filteredAvgMonthly = filteredMonthly.length > 0 ? filteredExpenses / filteredMonthly.length : 0;
+
+                    return (
+                      <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
+                        <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg p-6">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm text-red-600">Total Charges</p>
+                              <p className="text-2xl font-bold text-red-700">{formatCurrency(filteredExpenses)}</p>
+                            </div>
+                            <TrendingUp className="h-8 w-8 text-red-600" />
+                          </div>
                         </div>
-                        <TrendingUp className="h-8 w-8 text-red-600" />
-                      </div>
-                    </div>
-                    
-                    <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm text-green-600">Total Credits</p>
-                          <p className="text-2xl font-bold text-green-700">{formatCurrency(monthlyData.reduce((sum, month) => sum + month.credits, 0))}</p>
+
+                        <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-6">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm text-green-600">Total Credits</p>
+                              <p className="text-2xl font-bold text-green-700">{formatCurrency(filteredCredits)}</p>
+                            </div>
+                            <TrendingDown className="h-8 w-8 text-green-600" />
+                          </div>
                         </div>
-                        <TrendingDown className="h-8 w-8 text-green-600" />
-                      </div>
-                    </div>
-                    
-                    <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm text-purple-600">Net Spending</p>
-                          <p className={`text-2xl font-bold ${(summary.totalExpenses - monthlyData.reduce((sum, month) => sum + month.credits, 0)) >= 0 ? 'text-red-700' : 'text-green-700'}`}>
-                            {formatCurrency(summary.totalExpenses - monthlyData.reduce((sum, month) => sum + month.credits, 0))}
-                          </p>
+
+                        <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg p-6">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm text-emerald-600">Total Income</p>
+                              <p className="text-2xl font-bold text-emerald-700">{formatCurrency(filteredIncome)}</p>
+                            </div>
+                            <DollarSign className="h-8 w-8 text-emerald-600" />
+                          </div>
                         </div>
-                        <DollarSign className="h-8 w-8 text-purple-600" />
-                      </div>
-                    </div>
-                    
-                    <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm text-orange-600">Avg Monthly Charges</p>
-                          <p className="text-2xl font-bold text-orange-700">{formatCurrency(summary.avgMonthlySpending)}</p>
+
+                        <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-6">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm text-purple-600">Net Spending</p>
+                              <p className={`text-2xl font-bold ${filteredNetSpending >= 0 ? 'text-red-700' : 'text-green-700'}`}>
+                                {formatCurrency(filteredNetSpending)}
+                              </p>
+                            </div>
+                            <TrendingDown className="h-8 w-8 text-purple-600" />
+                          </div>
                         </div>
-                        <Calendar className="h-8 w-8 text-orange-600" />
+
+                        <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-6">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm text-orange-600">Avg Monthly Charges</p>
+                              <p className="text-2xl font-bold text-orange-700">{formatCurrency(filteredAvgMonthly)}</p>
+                            </div>
+                            <Calendar className="h-8 w-8 text-orange-600" />
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
+                    );
+                  })()}
 
                   {/* Filters for Charts */}
                   <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
@@ -1691,7 +1730,7 @@ const FinancialTracker = () => {
                       </div>
                       <div className="p-6">
                         {/* Summary Stats */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
                           <div className="bg-gray-50 rounded-lg p-3 text-center">
                             <div className="text-lg font-semibold text-gray-800">{getDateRangeSummary()?.expenseCount || 0}</div>
                             <div className="text-xs text-gray-500">Expenses</div>
@@ -1699,6 +1738,10 @@ const FinancialTracker = () => {
                           <div className="bg-green-50 rounded-lg p-3 text-center">
                             <div className="text-lg font-semibold text-green-700">{formatCurrency(getDateRangeSummary()?.totalCredits || 0)}</div>
                             <div className="text-xs text-green-600">Credits/Refunds</div>
+                          </div>
+                          <div className="bg-emerald-50 rounded-lg p-3 text-center">
+                            <div className="text-lg font-semibold text-emerald-700">{formatCurrency(getDateRangeSummary()?.totalIncome || 0)}</div>
+                            <div className="text-xs text-emerald-600">Income</div>
                           </div>
                           <div className="bg-blue-50 rounded-lg p-3 text-center">
                             <div className="text-lg font-semibold text-blue-700">{formatCurrency(getDateRangeSummary()?.netSpending || 0)}</div>

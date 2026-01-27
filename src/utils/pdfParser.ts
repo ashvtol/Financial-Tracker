@@ -303,16 +303,30 @@ const parseCitiDebitStatementWithPositions = (
   const periodMatch = text.match(/Period\s+(\w+\s+\d{1,2})\s*[-–]\s*(\w+\s+\d{1,2},?\s*\d{4})/i);
   const billingPeriod = periodMatch ? `${periodMatch[1]} - ${periodMatch[2]}` : undefined;
 
-  // Get year from statement period
-  let statementYear = new Date().getFullYear();
+  // Get year from statement period and detect if it spans two years
+  let statementEndYear = new Date().getFullYear();
+  let statementStartMonth = '';
+  let statementEndMonth = '';
+
   if (periodMatch) {
     const yearMatch = periodMatch[2].match(/(\d{4})/);
     if (yearMatch) {
-      statementYear = parseInt(yearMatch[1]);
+      statementEndYear = parseInt(yearMatch[1]);
     }
+    // Extract start and end months
+    const startMonthMatch = periodMatch[1].match(/^(\w+)/);
+    const endMonthMatch = periodMatch[2].match(/^(\w+)/);
+    if (startMonthMatch) statementStartMonth = startMonthMatch[1].toLowerCase();
+    if (endMonthMatch) statementEndMonth = endMonthMatch[1].toLowerCase();
   }
 
-  console.log('PDF Parser (Debit): Statement period:', billingPeriod, 'Year:', statementYear);
+  // Check if statement spans two years (e.g., Dec - Jan)
+  const monthOrder = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+  const startMonthIndex = monthOrder.findIndex(m => statementStartMonth.startsWith(m));
+  const endMonthIndex = monthOrder.findIndex(m => statementEndMonth.startsWith(m));
+  const spansYears = startMonthIndex > endMonthIndex; // e.g., Dec (11) > Jan (0)
+
+  console.log('PDF Parser (Debit): Statement period:', billingPeriod, 'End Year:', statementEndYear, 'Spans years:', spansYears);
 
   let inCheckingActivity = false;
 
@@ -341,13 +355,16 @@ const parseCitiDebitStatementWithPositions = (
     if (!dateMatch) continue;
     const dateStr = dateMatch[1];
 
-    // Parse using X positions
-    // Amount Subtracted: x ~ 360-420
-    // Amount Added: x ~ 420-510
-    // Balance: x ~ 510+
+    // Parse using X positions - columns may vary by PDF
+    // Amount Subtracted: typically x ~ 340-430
+    // Amount Added: typically x ~ 430-520
+    // Balance: typically x ~ 520+
     let amountSubtracted = 0;
     let amountAdded = 0;
     let description = '';
+
+    // Collect all amounts with their positions for smarter detection
+    const amounts: Array<{ amount: number; x: number }> = [];
 
     for (const item of items) {
       const x = item.x;
@@ -358,23 +375,57 @@ const parseCitiDebitStatementWithPositions = (
 
       if (numMatch) {
         const amount = parseFloat(numMatch[1].replace(/,/g, ''));
-        if (x >= 360 && x < 420) {
-          amountSubtracted = amount;
-        } else if (x >= 420 && x < 510) {
-          amountAdded = amount;
-        }
-        // Skip balance (x >= 510)
+        amounts.push({ amount, x });
       } else if (x >= 70 && x < 350 && itemText.length > 0 && !/^\d{1,2}\/\d{1,2}$/.test(itemText)) {
         description += itemText + ' ';
       }
     }
 
+    // Sort amounts by X position and assign to columns
+    // Typically: subtracted (left), added (middle), balance (right)
+    amounts.sort((a, b) => a.x - b.x);
+    if (amounts.length >= 2) {
+      // If we have 2+ amounts, first non-balance is subtracted, second is added
+      // Balance is usually the largest X position
+      if (amounts.length === 2) {
+        // Could be subtracted+balance or added+balance
+        // Use X position to determine: if first is < 430, it's subtracted; otherwise added
+        if (amounts[0].x < 430) {
+          amountSubtracted = amounts[0].amount;
+        } else {
+          amountAdded = amounts[0].amount;
+        }
+      } else if (amounts.length >= 3) {
+        amountSubtracted = amounts[0].amount;
+        amountAdded = amounts[1].amount;
+        // amounts[2] is balance, ignore
+      }
+    } else if (amounts.length === 1) {
+      // Single amount - use X position to determine type
+      if (amounts[0].x < 430) {
+        amountSubtracted = amounts[0].amount;
+      } else if (amounts[0].x < 520) {
+        amountAdded = amounts[0].amount;
+      }
+      // If x >= 520, it's just a balance line, ignore
+    }
+
     description = description.trim();
     if (!description) continue;
 
-    // Parse the date
+    // Debug: log what we found
+    if (amounts.length > 0) {
+      console.log(`PDF Parser (Debit): Line "${dateStr}" amounts:`, amounts.map(a => `$${a.amount}@x=${a.x.toFixed(0)}`).join(', '), `| desc: ${description.substring(0, 30)}`);
+    }
+
+    // Parse the date with correct year handling for statements spanning two years
     const [month, day] = dateStr.split('/').map(Number);
-    const fullDate = `${statementYear}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    // If statement spans years (e.g., Dec-Jan) and this is a late-year month, use previous year
+    let transactionYear = statementEndYear;
+    if (spansYears && month >= 10) { // Oct, Nov, Dec should be previous year
+      transactionYear = statementEndYear - 1;
+    }
+    const fullDate = `${transactionYear}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
     const descLower = description.toLowerCase();
 
