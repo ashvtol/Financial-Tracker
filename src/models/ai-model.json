@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-01-27T08:52:19.639Z",
+  "timestamp": "2026-01-27T09:17:55.278Z",
   "learningModel": {
     "playstation network": "Healthcare",
     "icon dental": "Healthcare",
@@ -143,7 +143,23 @@
     "aplpay dick's": "Food & Dining",
     "tst umi": "Food & Dining",
     "aplpay fuji": "Food & Dining",
-    "aplpay cannolo": "Food & Dining"
+    "aplpay cannolo": "Food & Dining",
+    "tst queen": "Food & Dining",
+    "aplpay plus84": "Coffee Shop",
+    "aplpay yezi": "Food & Dining",
+    "tst supreme": "Food & Dining",
+    "rei seattle": "Gifts & Donations",
+    "tst hazlewood": "Food & Dining",
+    "aplpay saigon": "Food & Dining",
+    "aplpay crepe": "Food & Dining",
+    "tst trailbend": "Food & Dining",
+    "id:ctihxbxc723u id:jpm": "Housing & Utilities - Rent",
+    "eleven seattle": "Addictions",
+    "cinemark boxcon": "Entertainment",
+    "rei.com wa": "Gifts & Donations",
+    "venmo 8558124430": "Phone & Internet",
+    "wise inc": "Investments",
+    "churchill ca": "Food & Dining"
   },
   "customCategories": [
     "Fees",
