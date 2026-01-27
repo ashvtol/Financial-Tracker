@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-01-27T07:26:38.502Z",
+  "timestamp": "2026-01-27T08:28:03.700Z",
   "learningModel": {
     "playstation network": "Healthcare",
     "icon dental": "Healthcare",
@@ -36,7 +36,7 @@
     "aplpay anchored": "Groceries",
     "mayuri foods": "Groceries",
     "aplpay nata": "Food & Dining",
-    "aplpay lime": "Travel",
+    "aplpay lime": "Transportation - Other",
     "aplpay pike": "Travel",
     "uber": "Transportation - Cab/Rideshare",
     "indnon 0688800226727seattle": "Food & Dining",
@@ -108,13 +108,11 @@
     "amazon tips": "Whole Foods Groceries",
     "amazon.com hw4z69ja3amzn.com/bill": "Whole Foods Groceries",
     "amazon grocery": "Subscriptions",
-    "incoming wire": "Bank Fees",
-    "ach electronic": "Investments",
     "chestnut cottage": "Food & Dining",
     "wsferries cd": "Transportation - Public Transit",
     "bella italia": "Food & Dining",
     "dice.fm new": "Entertainment - Outdoors",
-    "lime pass": "Transportation - Other",
+    "lime pass": "Subscriptions",
     "nordrackcom888966628los angeles": "Gifts & Donations",
     "cinemark plano": "Entertainment",
     "just the": "Food & Dining",
@@ -130,8 +128,6 @@
     "netflix.com 866": "Subscriptions",
     "delaurenti italian": "Groceries",
     "lyft ride": "Transportation - Other",
-    "zelle debit": "Housing & Utilities - Rent",
-    "debit card": "Addictions"
   },
   "customCategories": [
     "Fees",

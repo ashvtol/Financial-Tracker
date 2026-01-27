@@ -1,7 +1,32 @@
 export const extractMerchant = (description: string): string => {
   // Extract merchant name from transaction description
-  const words = description.toLowerCase().split(/[\s\-#\*]+/);
-  return words.slice(0, 2).join(' ').trim();
+  const lower = description.toLowerCase();
+
+  // Skip common bank transaction prefixes to get to the actual merchant
+  const prefixPatterns = [
+    /^ach electronic (?:credit|debit)\s+/i,      // "ACH Electronic Credit MICROSOFT" → "microsoft"
+    /^debit card purchase\s+[\d\/]+\s+[\d:]+[ap]?\s*#?\d*\s*/i,  // "Debit Card Purchase 12/20 04:55p #7165 STORE" → "store"
+    /^incoming wire transfer\s+(?:wire\s+)?(?:from\s+)?/i,  // "Incoming Wire Transfer WIRE FROM NAME" → "name"
+    /^transfer to\s+/i,                          // "Transfer to Bankcard" → "bankcard"
+    /^zelle (?:debit|credit|payment)\s+/i,       // "Zelle Debit PAY ID:..." → "pay id:..."
+  ];
+
+  let processed = lower;
+  for (const pattern of prefixPatterns) {
+    if (pattern.test(processed)) {
+      processed = processed.replace(pattern, '');
+      break;
+    }
+  }
+
+  // Now extract first 2 meaningful words from the remaining text
+  const words = processed.split(/[\s\-#\*]+/).filter(w => w.length > 0);
+
+  // Skip common non-merchant words
+  const skipWords = ['pay', 'payment', 'id', 'org', 'fee', 'vs', 'edi'];
+  const meaningfulWords = words.filter(w => !skipWords.includes(w) && !/^[\d:]+$/.test(w));
+
+  return meaningfulWords.slice(0, 2).join(' ').trim() || words.slice(0, 2).join(' ').trim();
 };
 
 // Calculate similarity between two strings (0-1, where 1 is exact match)
