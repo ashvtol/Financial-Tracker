@@ -37,8 +37,7 @@ Thumbs.db
 Statments/
 Statements/
 
-# AI Model and Transactions - User-specific data (don't commit personal financial data)
-src/models/ai-model.json
+# Transactions - User-specific personal financial data (don't commit)
 src/models/transactions.json
 
 # Claude Code
