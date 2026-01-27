@@ -510,7 +510,9 @@ const FinancialTracker = () => {
           // Convert PDF transactions to our format
           const transactions = pdfResult.transactions.map((t, index) => {
             const amount = t.amount;
-            const date = new Date(t.date);
+            // Parse date as local time to avoid UTC timezone shift (off by one day)
+            const [year, month, day] = t.date.split('-').map(Number);
+            const date = new Date(year, month - 1, day);
             const uniqueId = `${file.name}-${date.getTime()}-${t.description.substring(0, 20).replace(/[^a-zA-Z0-9]/g, '')}-${Math.abs(amount)}-${index}`;
 
             // Use isExpense and isIncome from PDF parser
@@ -1839,13 +1841,15 @@ const FinancialTracker = () => {
                                   {transaction.user || 'Unknown'}
                                 </span>
                               </td>
-                              <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate" title={transaction.description}>
-                                {transaction.description}
-                                {isRefunded && (
-                                  <span className="ml-2 text-xs bg-yellow-200 text-yellow-800 px-2 py-1 rounded">
-                                    REFUNDED
-                                  </span>
-                                )}
+                              <td className="px-6 py-4 text-sm text-gray-900 max-w-md">
+                                <div className="break-words">
+                                  {transaction.description}
+                                  {isRefunded && (
+                                    <span className="ml-2 text-xs bg-yellow-200 text-yellow-800 px-2 py-1 rounded">
+                                      REFUNDED
+                                    </span>
+                                  )}
+                                </div>
                               </td>
                               <td className="px-6 py-4 text-sm">
                                 {editingTransaction === transaction.id ? (
@@ -2191,8 +2195,10 @@ const FinancialTracker = () => {
                                               {transaction.user || 'Unknown'}
                                             </span>
                                           </td>
-                                          <td className="px-3 py-2 text-gray-900 truncate max-w-xs" title={transaction.description}>
-                                            {transaction.description}
+                                          <td className="px-3 py-2 text-gray-900 max-w-sm">
+                                            <div className="break-words text-xs">
+                                              {transaction.description}
+                                            </div>
                                           </td>
                                           <td className="px-3 py-2">
                                             {editingTransaction === transaction.id ? (
