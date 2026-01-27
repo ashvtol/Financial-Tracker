@@ -800,14 +800,26 @@ const FinancialTracker = () => {
       ? allTransactions
       : allTransactions.filter(t => t.user === selectedUser);
 
-    // Show both charges and credits when not filtering by category, or when specifically filtering for Credits/Refunds
-    filtered = categoryFilter === 'Credits/Refunds'
-      ? filtered.filter(t => t.isCredit)
-      : categoryFilter === 'all'
-        ? filtered
-        : filtered.filter(t => t.isExpense); // Only charges for spending categories
+    // Determine if filtering by income or credit category
+    const isIncomeCategory = categoryFilter?.startsWith('Income') || categoryFilter === 'Transfer';
+    const isCreditCategory = categoryFilter === 'Credits/Refunds';
+    const isPaymentCategory = categoryFilter === 'Payment';
 
-    if (categoryFilter !== 'all' && categoryFilter !== 'Credits/Refunds') {
+    // Show appropriate transactions based on category filter
+    if (categoryFilter === 'all') {
+      // Show all transactions
+    } else if (isCreditCategory) {
+      filtered = filtered.filter(t => t.isCredit && !t.isIncome);
+    } else if (isIncomeCategory) {
+      filtered = filtered.filter(t => t.isIncome);
+    } else if (isPaymentCategory) {
+      filtered = filtered.filter(t => !t.isExpense && !t.isIncome);
+    } else {
+      // For spending categories, only show expenses
+      filtered = filtered.filter(t => t.isExpense);
+    }
+
+    if (categoryFilter !== 'all') {
       filtered = filtered.filter(t => t.category === categoryFilter);
     }
     
