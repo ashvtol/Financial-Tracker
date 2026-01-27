@@ -286,12 +286,20 @@ const parseCitiStatement = (text: string): PDFParseResult => {
   };
 };
 
-// Parse Citi Debit/Checking statement
-const parseCitiDebitStatement = (text: string): PDFParseResult => {
-  const transactions: ParsedTransaction[] = [];
-  const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+// Parse Citi Debit/Checking statement with position-based column detection
+interface LineWithPositions {
+  y: number;
+  items: Array<{ str: string; x: number }>;
+  text: string;
+}
 
-  // Find statement period
+const parseCitiDebitStatementWithPositions = (
+  linesWithPositions: LineWithPositions[],
+  text: string
+): PDFParseResult => {
+  const transactions: ParsedTransaction[] = [];
+
+  // Find statement period from text
   const periodMatch = text.match(/Period\s+(\w+\s+\d{1,2})\s*[-–]\s*(\w+\s+\d{1,2},?\s*\d{4})/i);
   const billingPeriod = periodMatch ? `${periodMatch[1]} - ${periodMatch[2]}` : undefined;
 
@@ -306,129 +314,93 @@ const parseCitiDebitStatement = (text: string): PDFParseResult => {
 
   console.log('PDF Parser (Debit): Statement period:', billingPeriod, 'Year:', statementYear);
 
-  // Log first 50 lines for debugging
-  console.log('PDF Parser (Debit): First 50 lines:');
-  for (let j = 0; j < Math.min(50, lines.length); j++) {
-    console.log(`  [${j}]: ${lines[j]}`);
-  }
-
-  // Track if we're in the Checking Activity section
   let inCheckingActivity = false;
 
-  // Pattern for debit transactions: Date Description Amount (with possible balance)
-  // Format: "MM/DD Description $X,XXX.XX" or amounts without $ sign
-  // The columns are: Date, Description, Amount Subtracted, Amount Added, Balance
-
-  // Pattern to match date at start of line
-  const datePattern = /^(\d{1,2}\/\d{1,2})\s+(.+)/;
-
-  // Pattern to match amounts (with or without $ sign, with optional negative)
-  const amountPattern = /(-?\$?[\d,]+\.\d{2})/g;
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const normalizedLine = line.replace(/\s+/g, ' ').trim();
-
+  for (const { items, text: lineText } of linesWithPositions) {
     // Detect Checking Activity section
-    if (/checking\s*activity/i.test(normalizedLine)) {
+    if (/checking\s*activity/i.test(lineText)) {
       inCheckingActivity = true;
       console.log('PDF Parser (Debit): Entering Checking Activity section');
       continue;
     }
 
-    // Detect end of Checking Activity (next major section)
-    if (inCheckingActivity && /^(savings\s*activity|summary\s*of|account\s*summary)/i.test(normalizedLine)) {
+    // Detect end of Checking Activity
+    if (inCheckingActivity && /^(savings|summary)/i.test(lineText)) {
       inCheckingActivity = false;
       console.log('PDF Parser (Debit): Exiting Checking Activity section');
-      continue;
-    }
-
-    // Skip header rows
-    if (/^date\s+description/i.test(normalizedLine) ||
-        /amount\s*(subtracted|added)/i.test(normalizedLine) ||
-        /^balance$/i.test(normalizedLine)) {
-      continue;
+      break;
     }
 
     if (!inCheckingActivity) continue;
 
-    // Try to parse transaction line
-    const dateMatch = line.match(datePattern);
-    if (dateMatch) {
-      const dateStr = dateMatch[1];
-      const rest = dateMatch[2];
+    // Skip non-transaction lines
+    if (!/^\d{1,2}\/\d{1,2}/.test(lineText)) continue;
 
-      // Extract all amounts from the line
-      const amounts: number[] = [];
-      let match;
-      const restForAmounts = rest;
-      const amountRegex = /(-?\$?[\d,]+\.\d{2})/g;
-      while ((match = amountRegex.exec(restForAmounts)) !== null) {
-        const amountStr = match[1].replace(/[$,]/g, '');
-        amounts.push(parseFloat(amountStr));
-      }
+    // Extract date
+    const dateMatch = lineText.match(/^(\d{1,2}\/\d{1,2})/);
+    if (!dateMatch) continue;
+    const dateStr = dateMatch[1];
 
-      if (amounts.length === 0) continue;
+    // Parse using X positions
+    // Amount Subtracted: x ~ 360-420
+    // Amount Added: x ~ 420-510
+    // Balance: x ~ 510+
+    let amountSubtracted = 0;
+    let amountAdded = 0;
+    let description = '';
 
-      // Extract description (everything before the first amount)
-      const firstAmountMatch = rest.match(/(-?\$?[\d,]+\.\d{2})/);
-      let description = firstAmountMatch
-        ? rest.substring(0, firstAmountMatch.index).trim()
-        : rest.trim();
+    for (const item of items) {
+      const x = item.x;
+      const itemText = item.str.trim();
 
-      // Clean up description
-      description = description.replace(/\s+/g, ' ').trim();
-      if (!description || description.length < 2) continue;
+      // Check if it's a number (amount)
+      const numMatch = itemText.match(/^([\d,]+\.\d{2})$/);
 
-      // Parse the date
-      const [month, day] = dateStr.split('/').map(Number);
-      const fullDate = `${statementYear}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-
-      // Determine if this is income (amount added) or expense (amount subtracted)
-      // In checking statements:
-      // - If there are 3 amounts: [subtracted, added, balance]
-      // - If there are 2 amounts: could be [subtracted, balance] or [added, balance]
-      // - Usually, the structure shows the amount in the appropriate column
-
-      // Heuristic: Look at the position of amounts in the line
-      // Or check if description suggests income
-      const incomeKeywords = /payroll|direct\s*dep|deposit|transfer\s*from|refund|interest|dividend/i;
-      const isLikelyIncome = incomeKeywords.test(description);
-
-      // Use the first non-zero amount as the transaction amount
-      // For checking statements, we'll use position-based logic
-      let amount = amounts[0];
-      let isExpense = true;
-      let isIncome = false;
-
-      // If we have multiple amounts, try to determine which is subtracted vs added
-      if (amounts.length >= 2) {
-        // Usually format is: [subtracted] [added] [balance]
-        // If first amount is 0 or missing, second is the added amount
-        if (amounts[0] === 0 && amounts[1] > 0) {
-          amount = amounts[1];
-          isExpense = false;
-          isIncome = true;
-        } else if (amounts[0] > 0) {
-          amount = amounts[0];
-          isExpense = true;
-          isIncome = false;
+      if (numMatch) {
+        const amount = parseFloat(numMatch[1].replace(/,/g, ''));
+        if (x >= 360 && x < 420) {
+          amountSubtracted = amount;
+        } else if (x >= 420 && x < 510) {
+          amountAdded = amount;
         }
-      } else if (isLikelyIncome) {
-        isExpense = false;
-        isIncome = true;
+        // Skip balance (x >= 510)
+      } else if (x >= 70 && x < 350 && itemText.length > 0 && !/^\d{1,2}\/\d{1,2}$/.test(itemText)) {
+        description += itemText + ' ';
       }
-
-      console.log(`PDF Parser (Debit): Transaction: ${fullDate} | ${description.substring(0, 30)}... | $${amount} | ${isIncome ? 'INCOME' : 'EXPENSE'}`);
-
-      transactions.push({
-        date: fullDate,
-        description,
-        amount: Math.abs(amount),
-        isExpense,
-        isIncome
-      });
     }
+
+    description = description.trim();
+    if (!description) continue;
+
+    // Parse the date
+    const [month, day] = dateStr.split('/').map(Number);
+    const fullDate = `${statementYear}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+    let amount: number;
+    let isExpense: boolean;
+    let isIncome: boolean;
+
+    if (amountAdded > 0) {
+      amount = amountAdded;
+      isExpense = false;
+      isIncome = true;
+    } else if (amountSubtracted > 0) {
+      amount = amountSubtracted;
+      isExpense = true;
+      isIncome = false;
+    } else {
+      continue;
+    }
+
+    console.log(`PDF Parser (Debit): ${fullDate} | ${isIncome ? 'INCOME' : 'EXPENSE'} | $${amount} | ${description.substring(0, 40)}`);
+
+    transactions.push({
+      date: fullDate,
+      description,
+      amount,
+      isExpense,
+      isIncome
+    });
   }
 
   console.log(`PDF Parser (Debit): Found ${transactions.length} transactions (${transactions.filter(t => t.isExpense).length} expenses, ${transactions.filter(t => t.isIncome).length} income)`);
@@ -449,16 +421,9 @@ const parseAmexStatement = (text: string): PDFParseResult => {
   };
 };
 
-// Detect statement type and parse accordingly
+// Detect statement type and parse accordingly (for non-debit statements)
 const detectAndParseStatement = (text: string): PDFParseResult => {
   const textLower = text.toLowerCase();
-
-  // Check for Citi Debit/Checking statement first (more specific)
-  if ((textLower.includes('citi') || textLower.includes('citibank')) &&
-      (textLower.includes('checking activity') || textLower.includes('deposit accounts') || textLower.includes('checking account'))) {
-    console.log('PDF Parser: Detected Citi Debit/Checking statement');
-    return parseCitiDebitStatement(text);
-  }
 
   // Citi credit card statement
   if (textLower.includes('citi') || textLower.includes('costco anywhere visa')) {
@@ -480,24 +445,20 @@ export const parsePDFStatement = async (file: File): Promise<PDFParseResult> => 
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
 
   let fullText = '';
+  const allLinesWithPositions: LineWithPositions[] = [];
 
-  // Extract text from all pages
+  // Extract text from all pages with position information
   for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
     const page = await pdf.getPage(pageNum);
     const textContent = await page.getTextContent();
+
+    // Build full text
     const pageText = textContent.items
       .map((item: any) => item.str)
       .join(' ');
     fullText += pageText + '\n';
-  }
 
-  // Also try line-by-line extraction for better structure
-  let structuredText = '';
-  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-    const page = await pdf.getPage(pageNum);
-    const textContent = await page.getTextContent();
-
-    // Group by Y position to reconstruct lines
+    // Group by Y position to reconstruct lines with position data
     const items = textContent.items as any[];
     const lineMap = new Map<number, any[]>();
 
@@ -518,12 +479,30 @@ export const parsePDFStatement = async (file: File): Promise<PDFParseResult> => 
       lineItems.sort((a, b) => a.transform[4] - b.transform[4]);
       const lineText = lineItems.map(item => item.str).join(' ').trim();
       if (lineText) {
-        structuredText += lineText + '\n';
+        allLinesWithPositions.push({
+          y,
+          items: lineItems.map(item => ({
+            str: item.str,
+            x: Math.round(item.transform[4])
+          })),
+          text: lineText
+        });
       }
     });
   }
 
-  // Use structured text for parsing
+  // Build structured text for other parsers
+  const structuredText = allLinesWithPositions.map(l => l.text).join('\n');
+
+  // Check if this is a Citi Debit/Checking statement (needs position-based parsing)
+  const textLower = fullText.toLowerCase();
+  if ((textLower.includes('citi') || textLower.includes('citibank')) &&
+      (textLower.includes('checking activity') || textLower.includes('deposit accounts'))) {
+    console.log('PDF Parser: Detected Citi Debit/Checking statement (using position-based parsing)');
+    return parseCitiDebitStatementWithPositions(allLinesWithPositions, fullText);
+  }
+
+  // Use text-based parsing for other statement types
   return detectAndParseStatement(structuredText);
 };
 
