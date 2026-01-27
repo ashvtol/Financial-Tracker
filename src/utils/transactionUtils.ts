@@ -1,3 +1,8 @@
+// Payment platforms where we need to keep the transaction ID to make each unique
+const PAYMENT_PLATFORM_PATTERNS = [
+  'venmo', 'zelle', 'paypal', 'cashapp', 'cash app', 'apple cash'
+];
+
 export const extractMerchant = (description: string): string => {
   // Extract merchant name from transaction description
   const lower = description.toLowerCase();
@@ -19,10 +24,25 @@ export const extractMerchant = (description: string): string => {
     }
   }
 
-  // Now extract first 2 meaningful words from the remaining text
+  // Check if this is a payment platform - if so, include the transaction ID
+  const isPaymentPlatformTx = PAYMENT_PLATFORM_PATTERNS.some(p => processed.includes(p));
+
+  // Now extract words from the remaining text
   const words = processed.split(/[\s\-#\*]+/).filter(w => w.length > 0);
 
-  // Skip common non-merchant words
+  if (isPaymentPlatformTx) {
+    // For payment platforms, include platform name + transaction ID to make each unique
+    // e.g., "venmo payment 1047403373541" → "venmo 1047403373541"
+    const platform = words.find(w => PAYMENT_PLATFORM_PATTERNS.some(p => w.includes(p))) || words[0];
+    const txId = words.find(w => /^\d{6,}$/.test(w)); // Find long numeric ID
+    if (txId) {
+      return `${platform} ${txId}`.trim();
+    }
+    // If no ID found, use first 3 words to get more uniqueness
+    return words.slice(0, 3).join(' ').trim();
+  }
+
+  // Skip common non-merchant words for regular transactions
   const skipWords = ['pay', 'payment', 'id', 'org', 'fee', 'vs', 'edi'];
   const meaningfulWords = words.filter(w => !skipWords.includes(w) && !/^[\d:]+$/.test(w));
 
