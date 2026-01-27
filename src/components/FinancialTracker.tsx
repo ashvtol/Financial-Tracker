@@ -865,11 +865,15 @@ const FinancialTracker = () => {
     if (!dateFilter.start && !dateFilter.end) return null;
 
     const filtered = getFilteredTransactions();
-    const expenses = filtered.filter(t => t.isExpense && !t.isCredit);
+    // Helper to check if transaction is income
+    const isIncomeTransaction = (t) => t.isIncome === true || t.category?.startsWith('Income');
+
+    // Expenses: must be expense, not credit, and not income
+    const expenses = filtered.filter(t => t.isExpense && !t.isCredit && !isIncomeTransaction(t));
     // Only count actual refunds/credits, not payments or income
-    const credits = filtered.filter(t => t.category === 'Credits/Refunds');
+    const credits = filtered.filter(t => t.category === 'Credits/Refunds' && !isIncomeTransaction(t));
     // Income transactions (salary, interest, etc.)
-    const income = filtered.filter(t => t.isIncome === true || t.category?.startsWith('Income'));
+    const income = filtered.filter(t => isIncomeTransaction(t));
 
     // Calculate category totals for expenses
     const categoryTotals = new Map<string, number>();
