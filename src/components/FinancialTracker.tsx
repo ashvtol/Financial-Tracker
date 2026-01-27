@@ -537,8 +537,15 @@ const FinancialTracker = () => {
             } else if (isExpense) {
               category = categorizeTransaction(t.description, amount);
             } else {
-              // For credits: check if it's a payment or a refund/credit
-              category = t.description.toLowerCase().includes('payment') ? 'Payment' : 'Credits/Refunds';
+              // For non-expense transactions: check if it's a payment or a refund/credit
+              const desc = t.description.toLowerCase();
+              if (desc.includes('payment') || desc.includes('american expr') ||
+                  desc.includes('amex') || desc.includes('citi autopay') ||
+                  desc.includes('bankcard') || desc.includes('credit card')) {
+                category = 'Payment';
+              } else {
+                category = 'Credits/Refunds';
+              }
             }
 
             return {

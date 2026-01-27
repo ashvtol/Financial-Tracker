@@ -376,9 +376,18 @@ const parseCitiDebitStatementWithPositions = (
     const [month, day] = dateStr.split('/').map(Number);
     const fullDate = `${statementYear}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
+    const descLower = description.toLowerCase();
+
+    // Check if this is a credit card payment (not an expenditure)
+    const isCreditCardPayment = /american\s*expr|amex|citi\s*autopay|bankcard|credit\s*card\s*payment/i.test(description);
+
+    // Check if this is a payroll/salary deposit
+    const isSalary = /payroll|salary|direct\s*dep.*(?:employer|company)|oracle.*payroll/i.test(description);
+
     let amount: number;
     let isExpense: boolean;
     let isIncome: boolean;
+    let isPayment: boolean = false;
 
     if (amountAdded > 0) {
       amount = amountAdded;
@@ -386,20 +395,34 @@ const parseCitiDebitStatementWithPositions = (
       isIncome = true;
     } else if (amountSubtracted > 0) {
       amount = amountSubtracted;
-      isExpense = true;
-      isIncome = false;
+
+      // Credit card payments are not expenditures
+      if (isCreditCardPayment) {
+        isExpense = false;
+        isIncome = false;
+        isPayment = true;
+      } else {
+        isExpense = true;
+        isIncome = false;
+      }
     } else {
       continue;
     }
 
-    console.log(`PDF Parser (Debit): ${fullDate} | ${isIncome ? 'INCOME' : 'EXPENSE'} | $${amount} | ${description.substring(0, 40)}`);
+    // Determine transaction type for logging
+    let txType = 'EXPENSE';
+    if (isIncome) txType = isSalary ? 'INCOME-SALARY' : 'INCOME';
+    else if (isPayment) txType = 'PAYMENT';
+
+    console.log(`PDF Parser (Debit): ${fullDate} | ${txType} | $${amount} | ${description.substring(0, 40)}`);
 
     transactions.push({
       date: fullDate,
       description,
       amount,
       isExpense,
-      isIncome
+      isIncome,
+      // Pass salary flag through description check in FinancialTracker
     });
   }
 
