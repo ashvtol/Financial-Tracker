@@ -359,6 +359,18 @@ const parseCitiDebitStatementWithPositions = (
     }
   }
 
+  // Boilerplate text patterns to ignore (not part of transaction description)
+  const boilerplatePatterns = [
+    /statement\s*period/i, /account\s*\d+/i, /customer\s*service/i,
+    /www\./i, /http/i, /you\s*can\s*call/i, /telephone/i, /tty/i,
+    /monthly\s*service\s*fee/i, /atm\s*fee/i, /relationship\s*tier/i,
+    /total\s*(subtracted|added)/i, /citi\s*priority/i
+  ];
+
+  const isBoilerplate = (text: string): boolean => {
+    return boilerplatePatterns.some(pattern => pattern.test(text));
+  };
+
   // Second pass: process each transaction with its continuation lines
   for (let t = 0; t < transactionStarts.length; t++) {
     const { index: startIdx, dateStr } = transactionStarts[t];
@@ -375,13 +387,20 @@ const parseCitiDebitStatementWithPositions = (
     // Collect all amounts with their positions for smarter detection
     const amounts: Array<{ amount: number; x: number }> = [];
 
-    // Process all lines belonging to this transaction (start line + continuation lines)
-    for (let lineIdx = startIdx; lineIdx < nextStartIdx; lineIdx++) {
-      const { items } = linesWithPositions[lineIdx];
+    // Process transaction start line and at most 1 continuation line
+    const maxLines = Math.min(startIdx + 2, nextStartIdx); // Start line + 1 continuation max
+    for (let lineIdx = startIdx; lineIdx < maxLines; lineIdx++) {
+      const { items, text: lineText } = linesWithPositions[lineIdx];
+
+      // Stop if we hit boilerplate text
+      if (isBoilerplate(lineText)) break;
 
       for (const item of items) {
         const x = item.x;
         const itemText = item.str.trim();
+
+        // Skip boilerplate text items
+        if (isBoilerplate(itemText)) continue;
 
         // Check if it's a number (amount)
         const numMatch = itemText.match(/^([\d,]+\.\d{2})$/);
