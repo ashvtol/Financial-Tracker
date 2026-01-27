@@ -800,6 +800,9 @@ const FinancialTracker = () => {
       ? allTransactions
       : allTransactions.filter(t => t.user === selectedUser);
 
+    // Helper to check if transaction is income
+    const isIncomeTransaction = (t) => t.isIncome === true || t.category?.startsWith('Income');
+
     // Determine if filtering by income or credit category
     const isIncomeCategory = categoryFilter?.startsWith('Income') || categoryFilter === 'Transfer';
     const isCreditCategory = categoryFilter === 'Credits/Refunds';
@@ -809,11 +812,12 @@ const FinancialTracker = () => {
     if (categoryFilter === 'all') {
       // Show all transactions
     } else if (isCreditCategory) {
-      filtered = filtered.filter(t => t.isCredit && !t.isIncome);
+      filtered = filtered.filter(t => t.isCredit && !isIncomeTransaction(t));
     } else if (isIncomeCategory) {
-      filtered = filtered.filter(t => t.isIncome);
+      // For income categories, check both isIncome flag and category name
+      filtered = filtered.filter(t => isIncomeTransaction(t) || t.category === categoryFilter);
     } else if (isPaymentCategory) {
-      filtered = filtered.filter(t => !t.isExpense && !t.isIncome);
+      filtered = filtered.filter(t => t.category === 'Payment' || (!t.isExpense && !isIncomeTransaction(t)));
     } else {
       // For spending categories, only show expenses
       filtered = filtered.filter(t => t.isExpense);
