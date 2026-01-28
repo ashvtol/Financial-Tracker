@@ -19,8 +19,23 @@ interface PDFParseResult {
   billingPeriod?: string;
 }
 
+// Extract year from filename patterns like "January 22, 25.pdf" or "January 2025.pdf"
+const extractYearFromFilename = (filename: string): number | null => {
+  // Pattern: "Month DD, YY" (e.g., "January 22, 25.pdf")
+  const shortYearMatch = filename.match(/\w+\s+\d{1,2},?\s*(\d{2})\.pdf$/i);
+  if (shortYearMatch) {
+    return 2000 + parseInt(shortYearMatch[1]);
+  }
+  // Pattern: "Month YYYY" or contains 4-digit year
+  const fullYearMatch = filename.match(/(20\d{2})/);
+  if (fullYearMatch) {
+    return parseInt(fullYearMatch[1]);
+  }
+  return null;
+};
+
 // Parse Citi credit card statement
-const parseCitiStatement = (text: string): PDFParseResult => {
+const parseCitiStatement = (text: string, filename?: string): PDFParseResult => {
   const transactions: ParsedTransaction[] = [];
   const lines = text.split('\n').map(l => l.trim()).filter(l => l);
 
@@ -41,6 +56,13 @@ const parseCitiStatement = (text: string): PDFParseResult => {
     const endMonthMatch = billingMatch[2].match(/^(\d{1,2})\//);
     if (endMonthMatch) {
       statementEndMonth = parseInt(endMonthMatch[1]);
+    }
+  } else if (filename) {
+    // If no billing period found, try extracting year from filename
+    const filenameYear = extractYearFromFilename(filename);
+    if (filenameYear) {
+      statementYear = filenameYear;
+      console.log(`PDF Parser: Using year ${statementYear} from filename: ${filename}`);
     }
   }
 
@@ -529,13 +551,13 @@ const parseAmexStatement = (text: string): PDFParseResult => {
 };
 
 // Detect statement type and parse accordingly (for non-debit statements)
-const detectAndParseStatement = (text: string): PDFParseResult => {
+const detectAndParseStatement = (text: string, filename?: string): PDFParseResult => {
   const textLower = text.toLowerCase();
 
   // Citi credit card statement
   if (textLower.includes('citi') || textLower.includes('costco anywhere visa')) {
     console.log('PDF Parser: Detected Citi Credit Card statement');
-    return parseCitiStatement(text);
+    return parseCitiStatement(text, filename);
   }
 
   if (textLower.includes('american express') || textLower.includes('amex')) {
@@ -543,7 +565,7 @@ const detectAndParseStatement = (text: string): PDFParseResult => {
   }
 
   // Default to Citi parser as fallback
-  return parseCitiStatement(text);
+  return parseCitiStatement(text, filename);
 };
 
 // Main function to parse PDF file
@@ -610,7 +632,7 @@ export const parsePDFStatement = async (file: File): Promise<PDFParseResult> => 
   }
 
   // Use text-based parsing for other statement types
-  return detectAndParseStatement(structuredText);
+  return detectAndParseStatement(structuredText, file.name);
 };
 
 export const isPDFFile = (file: File): boolean => {
