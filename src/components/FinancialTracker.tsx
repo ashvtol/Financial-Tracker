@@ -50,6 +50,51 @@ const FinancialTracker = () => {
     setTimeout(() => setNotification(null), 3000);
   }, []);
 
+  // Helper to extract source/bank name from file path or name
+  const extractSourceFromPath = (file: File): string => {
+    // Try to get path from webkitRelativePath (folder upload) or file path
+    const path = file.webkitRelativePath || (file as any).path || file.name;
+
+    // Split path and look for bank folder name (parent of the file)
+    const parts = path.split(/[/\\]/);
+
+    // Find the bank folder - typically the folder containing the file
+    // Path structure: .../Statements/User/BankName/file.pdf
+    // So we want the second-to-last part (parent folder)
+    let bankFolder = '';
+    if (parts.length >= 2) {
+      bankFolder = parts[parts.length - 2]; // Parent folder
+    }
+
+    const lower = bankFolder.toLowerCase();
+
+    // Map folder names to friendly display names
+    if (lower.includes('american-express') || lower.includes('american_express') || lower.includes('amex')) return 'Amex';
+    if (lower.includes('citi-costco') || lower.includes('citi_costco')) return 'Citi Costco';
+    if (lower.includes('citi') && lower.includes('debit')) return 'Citi Debit';
+    if (lower.includes('citi') && lower.includes('credit')) return 'Citi Credit';
+    if (lower.includes('citi')) return 'Citi';
+    if (lower.includes('chase') && lower.includes('debit')) return 'Chase Debit';
+    if (lower.includes('chase') && lower.includes('credit')) return 'Chase Credit';
+    if (lower.includes('chase')) return 'Chase';
+    if (lower.includes('bofa') || lower.includes('bank-of-america') || lower.includes('bank_of_america')) return 'BofA';
+    if (lower.includes('wells') || lower.includes('fargo')) return 'Wells Fargo';
+    if (lower.includes('capital-one') || lower.includes('capital_one') || lower.includes('capitalone')) return 'Capital One';
+    if (lower.includes('discover')) return 'Discover';
+    if (lower.includes('usaa')) return 'USAA';
+    if (lower.includes('schwab')) return 'Schwab';
+    if (lower.includes('fidelity')) return 'Fidelity';
+    if (lower.includes('vanguard')) return 'Vanguard';
+
+    // If we found a bank folder, clean it up and return
+    if (bankFolder && bankFolder !== file.name) {
+      return bankFolder.replace(/[-_]/g, ' ').trim();
+    }
+
+    // Fallback to filename without extension
+    return file.name.replace(/\.(pdf|csv)$/i, '').replace(/[-_]/g, ' ').trim();
+  };
+
   // Load AI model from file via API
   const loadModelFromAPI = useCallback(async () => {
     try {
@@ -472,7 +517,7 @@ const FinancialTracker = () => {
               description: description.trim(),
               amount: amount,
               category: category,
-              source: file.name,
+              source: extractSourceFromPath(file),
               user: userName,
               isExpense: amount > 0, // For credit cards, positive amounts are spending/charges
               isCredit: amount < 0,   // Negative amounts are credits/refunds
@@ -484,7 +529,7 @@ const FinancialTracker = () => {
         }
       });
     });
-  }, [categorizeTransaction]);
+  }, [categorizeTransaction, extractSourceFromPath]);
 
   const handleFileUpload = useCallback(async (files) => {
     setIsProcessing(true);
@@ -556,7 +601,7 @@ const FinancialTracker = () => {
               description: t.description,
               amount: Math.abs(amount),
               category,
-              source: file.name,
+              source: extractSourceFromPath(file),
               user: userName,
               isExpense,
               isCredit,
@@ -867,13 +912,17 @@ const FinancialTracker = () => {
     const filtered = getFilteredTransactions();
     // Helper to check if transaction is income
     const isIncomeTransaction = (t) => t.isIncome === true || t.category?.startsWith('Income');
+    // Helper to check if transaction is an investment
+    const isInvestmentTransaction = (t) => t.category === 'Investments';
 
-    // Expenses: must be expense, not credit, and not income
-    const expenses = filtered.filter(t => t.isExpense && !t.isCredit && !isIncomeTransaction(t));
+    // Expenses: must be expense, not credit, not income, and not investment
+    const expenses = filtered.filter(t => t.isExpense && !t.isCredit && !isIncomeTransaction(t) && !isInvestmentTransaction(t));
     // Only count actual refunds/credits, not payments or income
     const credits = filtered.filter(t => t.category === 'Credits/Refunds' && !isIncomeTransaction(t));
     // Income transactions (salary, interest, etc.)
     const income = filtered.filter(t => isIncomeTransaction(t));
+    // Investment transactions
+    const investments = filtered.filter(t => isInvestmentTransaction(t));
 
     // Calculate category totals for expenses
     const categoryTotals = new Map<string, number>();
@@ -890,6 +939,7 @@ const FinancialTracker = () => {
     const totalExpenditure = expenses.reduce((sum, t) => sum + t.amount, 0);
     const totalCredits = credits.reduce((sum, t) => sum + Math.abs(t.amount), 0);
     const totalIncome = income.reduce((sum, t) => sum + t.amount, 0);
+    const totalInvestments = investments.reduce((sum, t) => sum + t.amount, 0);
     const netSpending = totalExpenditure - totalCredits - totalIncome;
 
     return {
@@ -897,11 +947,13 @@ const FinancialTracker = () => {
       totalExpenditure,
       totalCredits,
       totalIncome,
+      totalInvestments,
       netSpending,
       transactionCount: filtered.length,
       expenseCount: expenses.length,
       creditCount: credits.length,
-      incomeCount: income.length
+      incomeCount: income.length,
+      investmentCount: investments.length
     };
   };
 
@@ -1724,7 +1776,13 @@ const FinancialTracker = () => {
                             Date Range Summary
                             {dateFilter.start && dateFilter.end && (
                               <span className="ml-2 text-sm font-normal text-indigo-600">
-                                ({new Date(dateFilter.start).toLocaleDateString()} - {new Date(dateFilter.end).toLocaleDateString()})
+                                ({(() => {
+                                  const [sy, sm, sd] = dateFilter.start.split('-').map(Number);
+                                  return new Date(sy, sm - 1, sd).toLocaleDateString();
+                                })()} - {(() => {
+                                  const [ey, em, ed] = dateFilter.end.split('-').map(Number);
+                                  return new Date(ey, em - 1, ed).toLocaleDateString();
+                                })()})
                               </span>
                             )}
                           </h3>
@@ -1738,7 +1796,7 @@ const FinancialTracker = () => {
                       </div>
                       <div className="p-6">
                         {/* Summary Stats */}
-                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
                           <div className="bg-gray-50 rounded-lg p-3 text-center">
                             <div className="text-lg font-semibold text-gray-800">{getDateRangeSummary()?.expenseCount || 0}</div>
                             <div className="text-xs text-gray-500">Expenses</div>
@@ -1750,6 +1808,10 @@ const FinancialTracker = () => {
                           <div className="bg-emerald-50 rounded-lg p-3 text-center">
                             <div className="text-lg font-semibold text-emerald-700">{formatCurrency(getDateRangeSummary()?.totalIncome || 0)}</div>
                             <div className="text-xs text-emerald-600">Income</div>
+                          </div>
+                          <div className="bg-indigo-50 rounded-lg p-3 text-center">
+                            <div className="text-lg font-semibold text-indigo-700">{formatCurrency(getDateRangeSummary()?.totalInvestments || 0)}</div>
+                            <div className="text-xs text-indigo-600">Investments</div>
                           </div>
                           <div className="bg-blue-50 rounded-lg p-3 text-center">
                             <div className="text-lg font-semibold text-blue-700">{formatCurrency(getDateRangeSummary()?.netSpending || 0)}</div>
@@ -1824,6 +1886,7 @@ const FinancialTracker = () => {
                         <tr>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Source</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
@@ -1843,6 +1906,11 @@ const FinancialTracker = () => {
                               <td className="px-6 py-4 text-sm text-gray-700">
                                 <span className="px-2 py-1 bg-gray-100 rounded text-xs font-medium">
                                   {transaction.user || 'Unknown'}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 text-sm text-gray-600">
+                                <span className="px-2 py-1 bg-indigo-50 rounded text-xs font-medium text-indigo-700">
+                                  {transaction.source || 'Unknown'}
                                 </span>
                               </td>
                               <td className="px-6 py-4 text-sm text-gray-900 max-w-md">
@@ -2180,6 +2248,7 @@ const FinancialTracker = () => {
                                     <tr>
                                       <th className="px-3 py-2 text-left">Date</th>
                                       <th className="px-3 py-2 text-left">User</th>
+                                      <th className="px-3 py-2 text-left">Source</th>
                                       <th className="px-3 py-2 text-left">Description</th>
                                       <th className="px-3 py-2 text-left">Category</th>
                                       <th className="px-3 py-2 text-right">Amount</th>
@@ -2197,6 +2266,11 @@ const FinancialTracker = () => {
                                           <td className="px-3 py-2 text-gray-600">
                                             <span className="px-2 py-0.5 bg-gray-100 rounded text-xs">
                                               {transaction.user || 'Unknown'}
+                                            </span>
+                                          </td>
+                                          <td className="px-3 py-2 text-gray-600">
+                                            <span className="px-2 py-0.5 bg-indigo-50 rounded text-xs text-indigo-700">
+                                              {transaction.source || 'Unknown'}
                                             </span>
                                           </td>
                                           <td className="px-3 py-2 text-gray-900 max-w-sm">
