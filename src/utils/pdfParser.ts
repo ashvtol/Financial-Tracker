@@ -131,44 +131,6 @@ const parseCitiStatement = (text: string, filename?: string): PDFParseResult => 
     /^PAYMENT\s+/i,                  // Any description starting with "PAYMENT "
   ];
 
-  // Known expense merchant patterns - these are ALWAYS expenses, never credits
-  // This provides a safety net when section detection fails
-  const expenseIndicators = [
-    /^SQ \*/i,           // Square payments (restaurants, coffee shops)
-    /^TST\*/i,           // Toast POS (restaurants)
-    /SAFEWAY/i,          // Grocery stores
-    /CVS\/PHARMACY/i,    // Pharmacies
-    /COSTCO/i,           // Costco purchases
-    /AMAZON/i,           // Amazon purchases
-    /STARBUCKS/i,        // Coffee shops
-    /UBER\s*(EATS|TRIP)/i, // Uber services
-    /DOORDASH/i,         // Food delivery
-    /GRUBHUB/i,          // Food delivery
-    /SHELL\s*OIL/i,      // Gas stations
-    /CHEVRON/i,          // Gas stations
-    /^WHOLEFDS/i,        // Whole Foods
-    /TRADER JOE/i,       // Grocery
-    /TARGET/i,           // Retail
-    /WALGREENS/i,        // Pharmacy
-    /MBTA/i,             // Transit
-    /MTA\*/i,            // NYC Transit
-    /LYFT/i,             // Rideshare
-    /NETFLIX/i,          // Subscriptions
-    /SPOTIFY/i,          // Subscriptions
-    /RESTAURANT/i,       // Generic restaurant
-    /CAFE/i,             // Coffee shops
-    /COFFEE/i,           // Coffee shops
-    /BAKERY/i,           // Bakeries
-    /LIQUOR/i,           // Liquor stores
-    /H\s*MART/i,         // H Mart grocery
-    /METROPOLITAN\s*MKT/i, // Metropolitan Market
-    /QFC/i,              // QFC grocery
-    /FRED\s*MEYER/i,     // Fred Meyer
-    /RAMEN/i,            // Ramen restaurants
-    /SUSHI/i,            // Sushi restaurants
-    /PIZZA/i,            // Pizza places
-  ];
-
   // Transaction patterns
   // Pattern 1: "MM/DD MM/DD DESCRIPTION $AMOUNT" or "MM/DD DESCRIPTION $AMOUNT"
   const transactionWithAmount = /^(\d{1,2}\/\d{1,2})(?:\s+(\d{1,2}\/\d{1,2}))?\s+(.+?)\s+(-?\$[\d,]+\.\d{2})$/;
@@ -231,25 +193,8 @@ const parseCitiStatement = (text: string, filename?: string): PDFParseResult => 
       continue;
     }
 
-    // Helper to check if description indicates a payment/credit
-    const isPaymentByDescription = (desc: string): boolean => {
-      const normalizedDesc = desc.replace(/\s+/g, ' ').trim();
-      return paymentIndicators.some(pattern => pattern.test(normalizedDesc));
-    };
-
-    // Helper to check if description matches known expense merchant patterns
-    const isExpenseByMerchant = (desc: string): boolean => {
-      const normalizedDesc = desc.replace(/\s+/g, ' ').trim();
-      return expenseIndicators.some(pattern => pattern.test(normalizedDesc));
-    };
-
-    // Determine if this is an expense based on section
-    // Default to purchases (expense) if section is unknown, but check description for payment indicators
-    let isExpenseSection = currentSection === 'purchases' || currentSection === 'fees' || currentSection === 'interest';
-    if (currentSection === 'unknown') {
-      // Unknown section - will check description later for each transaction
-      isExpenseSection = true; // Default to expense, but will override below if description indicates payment
-    }
+    // Note: isPaymentByDescription kept for potential future use but amount sign is now the primary indicator
+    // In Citi statements, negative amounts indicate credits/refunds/payments
 
     // If we have a pending transaction and this line is just an amount
     if (pendingTransaction) {
@@ -257,11 +202,13 @@ const parseCitiStatement = (text: string, filename?: string): PDFParseResult => 
       if (amountMatch) {
         const amountStr = amountMatch[1].replace(/[$,]/g, '');
         const amount = parseFloat(amountStr);
+        // In Citi statements: positive amount = expense, negative amount = credit/refund
+        const isExpense = amount >= 0;
         transactions.push({
           date: pendingTransaction.date,
           description: pendingTransaction.description,
           amount: Math.abs(amount),
-          isExpense: pendingTransaction.isExpense
+          isExpense
         });
         pendingTransaction = null;
         continue;
@@ -282,16 +229,10 @@ const parseCitiStatement = (text: string, filename?: string): PDFParseResult => 
       const year = getYearForMonth(month);
       const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
-      // Determine isExpense based on section, description, and merchant patterns
-      // Priority: 1) Payment description = not expense, 2) Known expense merchant = expense, 3) Section-based
-      let isExpense = currentSection === 'payments' ? false :
-                     (isExpenseSection && !isPaymentByDescription(description));
-      // Override: If matches known expense merchant patterns, it IS an expense
-      if (isExpenseByMerchant(description)) {
-        isExpense = true;
-      }
+      // In Citi statements: positive amount = expense, negative amount = credit/refund
+      const isExpense = amount >= 0;
 
-      console.log(`PDF Parser: Transaction in section '${currentSection}': ${description.substring(0, 30)}... isExpense=${isExpense}`);
+      console.log(`PDF Parser: Transaction: ${description.substring(0, 30)}... amount=${amount} isExpense=${isExpense}`);
 
       transactions.push({
         date: dateStr,
@@ -320,9 +261,8 @@ const parseCitiStatement = (text: string, filename?: string): PDFParseResult => 
           const year = getYearForMonth(month);
           const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
-          // Determine isExpense: false if in payments section OR description indicates payment/credit
-          const isExpense = currentSection === 'payments' ? false :
-                           (isExpenseSection && !isPaymentByDescription(description));
+          // In Citi statements: positive amount = expense, negative amount = credit/refund
+          const isExpense = amount >= 0;
 
           transactions.push({
             date: dateStr,
@@ -340,16 +280,9 @@ const parseCitiStatement = (text: string, filename?: string): PDFParseResult => 
       const year = getYearForMonth(month);
       const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
-      // Determine isExpense based on section, description, and merchant patterns
-      // Priority: 1) Payment description = not expense, 2) Known expense merchant = expense, 3) Section-based
-      let isExpense = currentSection === 'payments' ? false :
-                     (isExpenseSection && !isPaymentByDescription(description));
-      // Override: If matches known expense merchant patterns, it IS an expense
-      if (isExpenseByMerchant(description)) {
-        isExpense = true;
-      }
-
-      pendingTransaction = { date: dateStr, description, isExpense };
+      // For pending transactions, we'll determine isExpense when we get the amount
+      // Default to true (expense) for now, will be corrected when amount is found
+      pendingTransaction = { date: dateStr, description, isExpense: true };
     }
   }
 
