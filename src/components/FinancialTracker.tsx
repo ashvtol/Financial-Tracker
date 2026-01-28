@@ -713,7 +713,7 @@ const FinancialTracker = () => {
         ...month,
         income: month.income || 0,
         netSpending: month.expenses - month.credits - (month.income || 0), // Net spending after credits and income
-        date: new Date(month.month + '-01').toLocaleDateString('en-US', { year: 'numeric', month: 'short' })
+        date: new Date(month.month + '-01T12:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'short' })
       }))
       .sort((a, b) => new Date(a.month) - new Date(b.month));
 
@@ -758,7 +758,7 @@ const FinancialTracker = () => {
     const categoryOverTimeArray = Array.from(categoryTimeMap.values())
       .map(month => ({
         ...month,
-        date: new Date(month.month + '-01').toLocaleDateString('en-US', { year: 'numeric', month: 'short' })
+        date: new Date(month.month + '-01T12:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'short' })
       }))
       .sort((a, b) => new Date(a.month) - new Date(b.month));
 
@@ -1004,7 +1004,7 @@ const FinancialTracker = () => {
         ...month,
         income: month.income || 0,
         netSpending: month.expenses - month.credits - month.income,
-        date: new Date(month.month + '-01').toLocaleDateString('en-US', { year: 'numeric', month: 'short' })
+        date: new Date(month.month + '-01T12:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'short' })
       }))
       .sort((a, b) => new Date(a.month) - new Date(b.month));
   };
@@ -1092,7 +1092,7 @@ const FinancialTracker = () => {
     return Array.from(categoryTimeMap.values())
       .map(month => ({
         ...month,
-        date: new Date(month.month + '-01').toLocaleDateString('en-US', { year: 'numeric', month: 'short' })
+        date: new Date(month.month + '-01T12:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'short' })
       }))
       .sort((a, b) => new Date(a.month) - new Date(b.month));
   };
@@ -1104,7 +1104,7 @@ const FinancialTracker = () => {
 
     netFiltered.forEach(transaction => {
       const monthYear = `${transaction.date.getFullYear()}-${String(transaction.date.getMonth() + 1).padStart(2, '0')}`;
-      const monthKey = new Date(monthYear + '-01').toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+      const monthKey = new Date(monthYear + '-01T12:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
       
       if (!monthlyTotals.has(monthKey)) {
         monthlyTotals.set(monthKey, new Map());
