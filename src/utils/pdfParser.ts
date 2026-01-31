@@ -133,10 +133,10 @@ const parseCitiStatement = (text: string, filename?: string): PDFParseResult => 
 
   // Transaction patterns
   // Pattern 1: "MM/DD MM/DD DESCRIPTION $AMOUNT" or "MM/DD DESCRIPTION $AMOUNT"
-  const transactionWithAmount = /^(\d{1,2}\/\d{1,2})(?:\s+(\d{1,2}\/\d{1,2}))?\s+(.+?)\s+(-?\$[\d,]+\.\d{2})$/;
+  const transactionWithAmount = /^(\d{1,2}\/\d{1,2})(?:\s+(\d{1,2}\/\d{1,2}))?\s+(.+?)\s+(-?\s*\$[\d,]+\.\d{2})$/;
 
   // Pattern 2: Just amount on a line
-  const amountOnly = /^(-?\$[\d,]+\.\d{2})$/;
+  const amountOnly = /^(-?\s*\$[\d,]+\.\d{2})$/;
 
   // Pattern 3: Date and description without amount (amount might be on next line)
   const dateAndDesc = /^(\d{1,2}\/\d{1,2})(?:\s+(\d{1,2}\/\d{1,2}))?\s+(.+)$/;
@@ -200,9 +200,9 @@ const parseCitiStatement = (text: string, filename?: string): PDFParseResult => 
     if (pendingTransaction) {
       const amountMatch = line.match(amountOnly);
       if (amountMatch) {
-        const amountStr = amountMatch[1].replace(/[$,]/g, '');
+        const amountStr = amountMatch[1].replace(/[$,\s]/g, '');
         const amount = parseFloat(amountStr);
-        // In Citi statements: positive amount = expense, negative amount = credit/refund
+        // Use amount sign as primary indicator: positive = expense, negative = credit/refund
         const isExpense = amount >= 0;
         transactions.push({
           date: pendingTransaction.date,
@@ -222,17 +222,17 @@ const parseCitiStatement = (text: string, filename?: string): PDFParseResult => 
     if (fullMatch) {
       const postDate = fullMatch[2] || fullMatch[1];
       const description = fullMatch[3].trim();
-      const amountStr = fullMatch[4].replace(/[$,]/g, '');
+      const amountStr = fullMatch[4].replace(/[$,\s]/g, '');
       const amount = parseFloat(amountStr);
 
       const [month, day] = postDate.split('/').map(Number);
       const year = getYearForMonth(month);
       const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
-      // In Citi statements: positive amount = expense, negative amount = credit/refund
+      // Use amount sign as primary indicator: positive = expense, negative = credit/refund
       const isExpense = amount >= 0;
 
-      console.log(`PDF Parser: Transaction: ${description.substring(0, 30)}... amount=${amount} isExpense=${isExpense}`);
+      console.log(`PDF Parser: Transaction: ${description.substring(0, 30)}... amount=${amount} section=${currentSection} isExpense=${isExpense}`);
 
       transactions.push({
         date: dateStr,
@@ -254,14 +254,14 @@ const parseCitiStatement = (text: string, filename?: string): PDFParseResult => 
         const nextLine = lines[i + 1].trim();
         const nextAmountMatch = nextLine.match(amountOnly);
         if (nextAmountMatch) {
-          const amountStr = nextAmountMatch[1].replace(/[$,]/g, '');
+          const amountStr = nextAmountMatch[1].replace(/[$,\s]/g, '');
           const amount = parseFloat(amountStr);
 
           const [month, day] = postDate.split('/').map(Number);
           const year = getYearForMonth(month);
           const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
-          // In Citi statements: positive amount = expense, negative amount = credit/refund
+          // Use amount sign as primary indicator: positive = expense, negative = credit/refund
           const isExpense = amount >= 0;
 
           transactions.push({
