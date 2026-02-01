@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
-import { getCategoryColor } from '../constants/categoryColors';
+import { getCategoryColor, getCategoryEmoji } from '../constants/categoryColors';
 import { formatCurrency } from '../utils/formatters';
 
 interface CategoryTotal {
@@ -86,11 +86,8 @@ export function MonthlySummaryCard({ data }: MonthlySummaryCardProps) {
 
                     return (
                       <div key={cat.category} className="flex items-center gap-3 py-1.5">
-                        {/* Colored dot */}
-                        <span
-                          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: color }}
-                        />
+                        {/* Emoji */}
+                        <span className="flex-shrink-0 text-base">{getCategoryEmoji(cat.category)}</span>
 
                         {/* Category name */}
                         <span className="w-44 text-sm text-gray-700 dark:text-slate-300 truncate">

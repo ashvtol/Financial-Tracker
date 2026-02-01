@@ -42,3 +42,4 @@ src/models/transactions.json
 
 # Claude Code
 .claude/
+CLAUDE.md

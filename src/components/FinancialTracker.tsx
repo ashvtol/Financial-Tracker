@@ -3,6 +3,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { Upload, TrendingUp, TrendingDown, DollarSign, Calendar, FileText, X, Edit2, Save, Filter, Brain, Eye, EyeOff, Search, Plus, Trash2, BarChart3, RefreshCw, Download, FolderOpen } from 'lucide-react';
 import Papa from 'papaparse';
 import { PREDEFINED_CATEGORIES, BASE_CATEGORIES, COLORS } from '../constants/categories';
+import { getCategoryColor, getCategoryEmoji } from '../constants/categoryColors';
 import { useTheme } from '../contexts/ThemeContext';
 import { useChartColors } from '../hooks/useChartColors';
 import { ThemeToggle } from './ThemeToggle';
@@ -1836,21 +1837,54 @@ const FinancialTracker = () => {
 
                         {/* Category Breakdown */}
                         <h4 className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">Spending by Category</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                          {getDateRangeSummary()?.categories.map((cat) => {
-                            const percentage = ((cat.total / (getDateRangeSummary()?.totalExpenditure || 1)) * 100).toFixed(1);
-                            return (
-                              <div key={cat.category} className="flex items-center justify-between bg-gray-50 dark:bg-dark-surface rounded-lg px-4 py-3">
-                                <div className="flex-1 min-w-0">
-                                  <div className="text-sm font-medium text-gray-800 dark:text-white truncate">{cat.category}</div>
-                                  <div className="text-xs text-gray-500 dark:text-slate-400">{percentage}%</div>
+                        <div className="space-y-2">
+                          {(() => {
+                            const summary = getDateRangeSummary();
+                            const maxAmount = summary ? Math.max(...summary.categories.map(c => c.total)) : 0;
+                            return summary?.categories.map((cat) => {
+                              const color = getCategoryColor(cat.category, isDark);
+                              const emoji = getCategoryEmoji(cat.category);
+                              const percent = summary.totalExpenditure > 0
+                                ? Math.round((cat.total / summary.totalExpenditure) * 100)
+                                : 0;
+                              const barWidth = maxAmount > 0
+                                ? Math.round((cat.total / maxAmount) * 100)
+                                : 0;
+
+                              return (
+                                <div key={cat.category} className="flex items-center gap-3 py-1.5">
+                                  {/* Emoji */}
+                                  <span className="flex-shrink-0 text-base">{emoji}</span>
+
+                                  {/* Category name */}
+                                  <span className="w-44 text-sm text-gray-700 dark:text-slate-300 truncate">
+                                    {cat.category}
+                                  </span>
+
+                                  {/* Progress bar */}
+                                  <div className="flex-1 h-2 bg-gray-200 dark:bg-dark-border rounded-full overflow-hidden">
+                                    <div
+                                      className="h-full rounded-full transition-all duration-300"
+                                      style={{
+                                        width: `${barWidth}%`,
+                                        backgroundColor: color
+                                      }}
+                                    />
+                                  </div>
+
+                                  {/* Amount */}
+                                  <span className="w-24 text-right text-sm font-semibold text-gray-900 dark:text-white">
+                                    {formatCurrency(cat.total)}
+                                  </span>
+
+                                  {/* Percentage */}
+                                  <span className="w-12 text-right text-xs text-gray-500 dark:text-slate-400">
+                                    {percent}%
+                                  </span>
                                 </div>
-                                <div className="text-sm font-bold text-gray-900 dark:text-white ml-3">
-                                  {formatCurrency(cat.total)}
-                                </div>
-                              </div>
-                            );
-                          })}
+                              );
+                            });
+                          })()}
                         </div>
                       </div>
                     </div>

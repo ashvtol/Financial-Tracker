@@ -60,3 +60,52 @@ export function getCategoryColor(category: string, isDark: boolean = false): str
   const index = getCategoryColorIndex(category);
   return isDark ? COLORS_DARK[index] : COLORS[index];
 }
+
+// Emoji map for categories
+export const CATEGORY_EMOJI_MAP: Record<string, string> = {
+  'Groceries': '🛒',
+  'Whole Foods Groceries': '🥬',
+  'Food & Dining': '🍽️',
+  'Coffee Shop': '☕',
+  'Transportation - Cab/Rideshare': '🚗',
+  'Transportation - Parking': '🅿️',
+  'Transportation - Fuel': '⛽',
+  'Transportation - Tolls': '🛣️',
+  'Transportation - Public Transit': '🚇',
+  'Transportation - Other': '🚌',
+  'Transportation': '🚗',
+  'Entertainment': '🎬',
+  'Entertainment - Outdoors': '🏕️',
+  'Digital Entertainment': '🎮',
+  'Healthcare': '🏥',
+  'Shopping': '🛍️',
+  'Housing & Utilities': '🏠',
+  'Travel': '✈️',
+  'Subscriptions': '📺',
+  'Phone & Internet': '📱',
+  'Gifts & Donations': '🎁',
+  'Education': '📚',
+  'Investments': '📈',
+  'Insurance': '🛡️',
+  'Bank Fees': '🏦',
+  'Personal Care': '💅',
+  'Payment': '💳',
+  'Credits/Refunds': '💰',
+  'Car Maintenance': '🔧',
+  'Income - Salary': '💵',
+  'Income - Interest': '💹',
+  'Income - Other': '💵',
+  'Transfer': '🔄',
+  'Nespresso': '☕',
+  'Addictions': '🚬',
+  'Fees': '💸',
+  'Other': '📦',
+};
+
+// Get the emoji for a category, with fallback for unknown categories
+export function getCategoryEmoji(category: string): string {
+  if (CATEGORY_EMOJI_MAP.hasOwnProperty(category)) {
+    return CATEGORY_EMOJI_MAP[category];
+  }
+  return '📦'; // Default emoji for unknown categories
+}
