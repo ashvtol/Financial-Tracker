@@ -3,6 +3,9 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { Upload, TrendingUp, TrendingDown, DollarSign, Calendar, FileText, X, Edit2, Save, Filter, Brain, Eye, EyeOff, Search, Plus, Trash2, BarChart3, RefreshCw, Download, FolderOpen } from 'lucide-react';
 import Papa from 'papaparse';
 import { PREDEFINED_CATEGORIES, BASE_CATEGORIES, COLORS } from '../constants/categories';
+import { useTheme } from '../contexts/ThemeContext';
+import { useChartColors } from '../hooks/useChartColors';
+import { ThemeToggle } from './ThemeToggle';
 import { API_URL, TIME_RANGES } from '../constants/config';
 import { formatCurrency } from '../utils/formatters';
 import { getTimeRangeFilter } from '../utils/timeRanges';
@@ -10,6 +13,9 @@ import { extractMerchant, extractUserFromFile, findMatchingMerchant } from '../u
 import { parsePDFStatement, isPDFFile } from '../utils/pdfParser';
 
 const FinancialTracker = () => {
+  const { isDark } = useTheme();
+  const { colors: chartColors, chart, getColor } = useChartColors();
+
   const [statements, setStatements] = useState([]);
   const [monthlyData, setMonthlyData] = useState([]);
   const [categoryData, setCategoryData] = useState([]);
@@ -1235,11 +1241,14 @@ const FinancialTracker = () => {
   const uniqueCategories = [...new Set(allTransactions.map(t => t.category))].sort();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-dark-bg dark:to-dark-surface p-4 transition-theme">
       <div className="max-w-7xl mx-auto">
-        <header className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">Advanced Financial Tracker</h1>
-          <p className="text-gray-600">AI-powered categorization with learning capabilities</p>
+        <header className="text-center mb-8 relative">
+          <div className="absolute right-0 top-0">
+            <ThemeToggle />
+          </div>
+          <h1 className="text-4xl font-bold text-gray-800 dark:text-white mb-2">Advanced Financial Tracker</h1>
+          <p className="text-gray-600 dark:text-slate-400">AI-powered categorization with learning capabilities</p>
         </header>
 
         {/* Notification Toast */}
@@ -1261,16 +1270,16 @@ const FinancialTracker = () => {
         )}
 
         {/* Upload Section */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
-          <div 
-            className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors"
+        <div className="bg-white dark:bg-dark-card rounded-lg shadow-lg dark:shadow-none dark:border dark:border-dark-border p-6 mb-8 transition-theme">
+          <div
+            className="border-2 border-dashed border-gray-300 dark:border-dark-border rounded-lg p-8 text-center hover:border-blue-400 dark:hover:border-accent-blue transition-colors"
             onDrop={handleDrop}
             onDragOver={(e) => e.preventDefault()}
             onDragEnter={(e) => e.preventDefault()}
           >
-            <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-700 mb-2">Upload Statements Folder</h3>
-            <p className="text-gray-500 mb-4">Select your Statements folder to automatically organize by user. Supports CSV and PDF files. AI learns from your categorization choices.</p>
+            <Upload className="mx-auto h-12 w-12 text-gray-400 dark:text-slate-500 mb-4" />
+            <h3 className="text-lg font-medium text-gray-700 dark:text-white mb-2">Upload Statements Folder</h3>
+            <p className="text-gray-500 dark:text-slate-400 mb-4">Select your Statements folder to automatically organize by user. Supports CSV and PDF files. AI learns from your categorization choices.</p>
             <input
               type="file"
               multiple
@@ -1326,21 +1335,21 @@ const FinancialTracker = () => {
           
           {isProcessing && (
             <div className="mt-4 text-center">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              <p className="mt-2 text-gray-600">Processing statements...</p>
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-accent-blue"></div>
+              <p className="mt-2 text-gray-600 dark:text-slate-400">Processing statements...</p>
             </div>
           )}
 
           {/* User Selection */}
           {availableUsers.length > 0 && (
-            <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+            <div className="mt-4 p-4 bg-blue-50 dark:bg-dark-surface rounded-lg">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
-                  <label className="text-sm font-medium text-blue-900">View Data For:</label>
+                  <label className="text-sm font-medium text-blue-900 dark:text-blue-300">View Data For:</label>
                   <select
                     value={selectedUser}
                     onChange={(e) => setSelectedUser(e.target.value)}
-                    className="px-4 py-2 border border-blue-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="px-4 py-2 border border-blue-300 dark:border-dark-border rounded-lg bg-white dark:bg-dark-card text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="combined">All Users Combined</option>
                     {availableUsers.map(user => (
@@ -1348,7 +1357,7 @@ const FinancialTracker = () => {
                     ))}
                   </select>
                 </div>
-                <div className="text-sm text-blue-700">
+                <div className="text-sm text-blue-700 dark:text-blue-300">
                   {selectedUser === 'combined'
                     ? `Showing data for all ${availableUsers.length} user(s)`
                     : `Showing data for ${selectedUser}`
@@ -1359,18 +1368,18 @@ const FinancialTracker = () => {
           )}
 
           {learningModel.size > 0 && (
-            <div className="mt-4 p-4 bg-green-50 rounded-lg">
+            <div className="mt-4 p-4 bg-green-50 dark:bg-dark-surface rounded-lg">
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
-                  <Brain className="h-5 w-5 text-green-600 mr-2" />
-                  <span className="text-green-800 font-medium">
+                  <Brain className="h-5 w-5 text-green-600 dark:text-accent-green mr-2" />
+                  <span className="text-green-800 dark:text-green-300 font-medium">
                     AI Model has learned {learningModel.size} merchant patterns (saved automatically)
                   </span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={exportLearningModel}
-                    className="flex items-center px-3 py-1 text-sm text-blue-600 hover:text-blue-800 border border-blue-300 rounded hover:bg-blue-50"
+                    className="flex items-center px-3 py-1 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 border border-blue-300 dark:border-blue-600 rounded hover:bg-blue-50 dark:hover:bg-dark-card"
                     title="Export AI learning data to file"
                   >
                     <Download className="h-3 w-3 mr-1" />
@@ -1385,7 +1394,7 @@ const FinancialTracker = () => {
                   />
                   <label
                     htmlFor="import-model"
-                    className="flex items-center px-3 py-1 text-sm text-green-600 hover:text-green-800 border border-green-300 rounded hover:bg-green-50 cursor-pointer"
+                    className="flex items-center px-3 py-1 text-sm text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 border border-green-300 dark:border-green-600 rounded hover:bg-green-50 dark:hover:bg-dark-card cursor-pointer"
                     title="Import AI learning data from file"
                   >
                     <FolderOpen className="h-3 w-3 mr-1" />
@@ -1393,7 +1402,7 @@ const FinancialTracker = () => {
                   </label>
                   <button
                     onClick={clearLearningModel}
-                    className="text-sm text-red-600 hover:text-red-800 underline"
+                    className="text-sm text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 underline"
                   >
                     Reset AI
                   </button>
@@ -1405,8 +1414,8 @@ const FinancialTracker = () => {
 
         {/* Navigation Tabs */}
         {allTransactions.length > 0 && (
-          <div className="bg-white rounded-lg shadow-lg mb-8">
-            <div className="border-b border-gray-200">
+          <div className="bg-white dark:bg-dark-card rounded-lg shadow-lg dark:shadow-none dark:border dark:border-dark-border mb-8 transition-theme">
+            <div className="border-b border-gray-200 dark:border-dark-border">
               <nav className="flex space-x-8 px-6">
                 {['overview', 'transactions', 'categories', 'manage-categories', 'insights'].map((tab) => (
                   <button
@@ -1414,8 +1423,8 @@ const FinancialTracker = () => {
                     onClick={() => setActiveTab(tab)}
                     className={`py-4 px-2 border-b-2 font-medium text-sm capitalize ${
                       activeTab === tab
-                        ? 'border-blue-500 text-blue-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                        ? 'border-blue-500 text-blue-600 dark:border-accent-blue dark:text-accent-blue'
+                        : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'
                     }`}
                   >
                     {tab.replace('-', ' ')}
@@ -1439,55 +1448,55 @@ const FinancialTracker = () => {
 
                     return (
                       <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
-                        <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg p-6">
+                        <div className="bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/30 dark:to-red-800/20 rounded-lg p-6">
                           <div className="flex items-center justify-between">
                             <div>
-                              <p className="text-sm text-red-600">Total Charges</p>
-                              <p className="text-2xl font-bold text-red-700">{formatCurrency(filteredExpenses)}</p>
+                              <p className="text-sm text-red-600 dark:text-red-400">Total Charges</p>
+                              <p className="text-2xl font-bold text-red-700 dark:text-red-300">{formatCurrency(filteredExpenses)}</p>
                             </div>
-                            <TrendingUp className="h-8 w-8 text-red-600" />
+                            <TrendingUp className="h-8 w-8 text-red-600 dark:text-red-400" />
                           </div>
                         </div>
 
-                        <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-6">
+                        <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/20 rounded-lg p-6">
                           <div className="flex items-center justify-between">
                             <div>
-                              <p className="text-sm text-green-600">Total Credits</p>
-                              <p className="text-2xl font-bold text-green-700">{formatCurrency(filteredCredits)}</p>
+                              <p className="text-sm text-green-600 dark:text-green-400">Total Credits</p>
+                              <p className="text-2xl font-bold text-green-700 dark:text-green-300">{formatCurrency(filteredCredits)}</p>
                             </div>
-                            <TrendingDown className="h-8 w-8 text-green-600" />
+                            <TrendingDown className="h-8 w-8 text-green-600 dark:text-green-400" />
                           </div>
                         </div>
 
-                        <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg p-6">
+                        <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/30 dark:to-emerald-800/20 rounded-lg p-6">
                           <div className="flex items-center justify-between">
                             <div>
-                              <p className="text-sm text-emerald-600">Total Income</p>
-                              <p className="text-2xl font-bold text-emerald-700">{formatCurrency(filteredIncome)}</p>
+                              <p className="text-sm text-emerald-600 dark:text-emerald-400">Total Income</p>
+                              <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{formatCurrency(filteredIncome)}</p>
                             </div>
-                            <DollarSign className="h-8 w-8 text-emerald-600" />
+                            <DollarSign className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
                           </div>
                         </div>
 
-                        <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-6">
+                        <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/30 dark:to-purple-800/20 rounded-lg p-6">
                           <div className="flex items-center justify-between">
                             <div>
-                              <p className="text-sm text-purple-600">Net Spending</p>
-                              <p className={`text-2xl font-bold ${filteredNetSpending >= 0 ? 'text-red-700' : 'text-green-700'}`}>
+                              <p className="text-sm text-purple-600 dark:text-purple-400">Net Spending</p>
+                              <p className={`text-2xl font-bold ${filteredNetSpending >= 0 ? 'text-red-700 dark:text-red-300' : 'text-green-700 dark:text-green-300'}`}>
                                 {formatCurrency(filteredNetSpending)}
                               </p>
                             </div>
-                            <TrendingDown className="h-8 w-8 text-purple-600" />
+                            <TrendingDown className="h-8 w-8 text-purple-600 dark:text-purple-400" />
                           </div>
                         </div>
 
-                        <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-6">
+                        <div className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/30 dark:to-orange-800/20 rounded-lg p-6">
                           <div className="flex items-center justify-between">
                             <div>
-                              <p className="text-sm text-orange-600">Avg Monthly Charges</p>
-                              <p className="text-2xl font-bold text-orange-700">{formatCurrency(filteredAvgMonthly)}</p>
+                              <p className="text-sm text-orange-600 dark:text-orange-400">Avg Monthly Charges</p>
+                              <p className="text-2xl font-bold text-orange-700 dark:text-orange-300">{formatCurrency(filteredAvgMonthly)}</p>
                             </div>
-                            <Calendar className="h-8 w-8 text-orange-600" />
+                            <Calendar className="h-8 w-8 text-orange-600 dark:text-orange-400" />
                           </div>
                         </div>
                       </div>
@@ -1495,12 +1504,12 @@ const FinancialTracker = () => {
                   })()}
 
                   {/* Filters for Charts */}
-                  <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Visualization Filters</h3>
+                  <div className="bg-white dark:bg-dark-surface rounded-lg shadow-lg dark:shadow-none dark:border dark:border-dark-border p-6 mb-8 transition-theme">
+                    <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Visualization Filters</h3>
 
                     {/* Time Range Selection */}
                     <div className="mb-6">
-                      <label className="block text-sm font-medium text-gray-700 mb-3">Time Range</label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">Time Range</label>
                       <div className="flex flex-wrap gap-2">
                         {TIME_RANGES.map(({ value, label }) => (
                           <button
@@ -1508,8 +1517,8 @@ const FinancialTracker = () => {
                             onClick={() => setTimeRange(value)}
                             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                               timeRange === value
-                                ? 'bg-blue-600 text-white shadow-md'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                ? 'bg-blue-600 dark:bg-accent-blue text-white shadow-md'
+                                : 'bg-gray-100 dark:bg-dark-card text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-dark-border'
                             }`}
                           >
                             {label}
@@ -1521,13 +1530,13 @@ const FinancialTracker = () => {
                     {/* Category Selection */}
                     <div>
                       <div className="flex items-center justify-between mb-3">
-                        <label className="block text-sm font-medium text-gray-700">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">
                           Categories to Display (leave empty for all)
                         </label>
                         {selectedCategoriesForCharts.size > 0 && (
                           <button
                             onClick={() => setSelectedCategoriesForCharts(new Set())}
-                            className="text-sm text-blue-600 hover:text-blue-800 underline"
+                            className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline"
                           >
                             Clear Selection
                           </button>
@@ -1541,8 +1550,8 @@ const FinancialTracker = () => {
                               key={category}
                               className={`flex items-center space-x-2 p-2 rounded border cursor-pointer transition-colors ${
                                 selectedCategoriesForCharts.has(category)
-                                  ? 'bg-blue-50 border-blue-300'
-                                  : 'bg-white border-gray-200 hover:border-gray-300'
+                                  ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-300 dark:border-blue-600'
+                                  : 'bg-white dark:bg-dark-card border-gray-200 dark:border-dark-border hover:border-gray-300 dark:hover:border-slate-500'
                               }`}
                             >
                               <input
@@ -1557,16 +1566,16 @@ const FinancialTracker = () => {
                                   }
                                   setSelectedCategoriesForCharts(newSet);
                                 }}
-                                className="rounded text-blue-600"
+                                className="rounded text-blue-600 dark:bg-dark-surface dark:border-dark-border"
                               />
-                              <span className="text-sm truncate" title={category}>
+                              <span className="text-sm truncate dark:text-slate-300" title={category}>
                                 {category}
                               </span>
                             </label>
                           ))}
                       </div>
                       {selectedCategoriesForCharts.size > 0 && (
-                        <div className="mt-3 text-sm text-gray-600">
+                        <div className="mt-3 text-sm text-gray-600 dark:text-slate-400">
                           Showing {selectedCategoriesForCharts.size} of {uniqueCategories.filter(cat => cat !== 'Payment' && cat !== 'Credits/Refunds').length} categories
                         </div>
                       )}
@@ -1575,23 +1584,23 @@ const FinancialTracker = () => {
 
                   {/* Charts */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                    <div className="bg-white rounded-lg shadow-lg p-6">
-                      <h3 className="text-xl font-bold text-gray-800 mb-4">Monthly Spending & Payments</h3>
+                    <div className="bg-white dark:bg-dark-card rounded-lg shadow-lg dark:shadow-none dark:border dark:border-dark-border p-6 transition-theme">
+                      <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4">Monthly Spending & Payments</h3>
                       <ResponsiveContainer width="100%" height={300}>
                         <LineChart data={getFilteredMonthlyData()}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="date" />
-                          <YAxis tickFormatter={(value) => `${(value/1000).toFixed(0)}k`} />
-                          <Tooltip formatter={(value) => formatCurrency(value)} />
+                          <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
+                          <XAxis dataKey="date" stroke={chart.axis} />
+                          <YAxis tickFormatter={(value) => `${(value/1000).toFixed(0)}k`} stroke={chart.axis} />
+                          <Tooltip formatter={(value) => formatCurrency(value)} contentStyle={{ backgroundColor: chart.tooltip.bg, borderColor: chart.tooltip.border, color: chart.tooltip.text }} />
                           <Legend />
-                          <Line type="monotone" dataKey="payments" stroke="#10b981" strokeWidth={3} name="Payments" />
-                          <Line type="monotone" dataKey="expenses" stroke="#ef4444" strokeWidth={3} name="Spending" />
+                          <Line type="monotone" dataKey="payments" stroke={chart.income} strokeWidth={3} name="Payments" />
+                          <Line type="monotone" dataKey="expenses" stroke={chart.expense} strokeWidth={3} name="Spending" />
                         </LineChart>
                       </ResponsiveContainer>
                     </div>
 
-                    <div className="bg-white rounded-lg shadow-lg p-6">
-                      <h3 className="text-xl font-bold text-gray-800 mb-4">Spending by Category</h3>
+                    <div className="bg-white dark:bg-dark-card rounded-lg shadow-lg dark:shadow-none dark:border dark:border-dark-border p-6 transition-theme">
+                      <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4">Spending by Category</h3>
                       <ResponsiveContainer width="100%" height={300}>
                         <PieChart>
                           <Pie
@@ -1605,10 +1614,10 @@ const FinancialTracker = () => {
                             dataKey="value"
                           >
                             {getFilteredCategoryData().slice(0, 8).map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                              <Cell key={`cell-${index}`} fill={getColor(index)} />
                             ))}
                           </Pie>
-                          <Tooltip formatter={(value) => formatCurrency(value)} />
+                          <Tooltip formatter={(value) => formatCurrency(value)} contentStyle={{ backgroundColor: chart.tooltip.bg, borderColor: chart.tooltip.border, color: chart.tooltip.text }} />
                         </PieChart>
                       </ResponsiveContainer>
                     </div>
@@ -1616,14 +1625,14 @@ const FinancialTracker = () => {
 
                   {/* Category Spending Over Time - Full Width */}
                   {getFilteredCategoryOverTimeData().length > 0 && (
-                    <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
-                      <h3 className="text-xl font-bold text-gray-800 mb-4">Category Spending Trends Over Time</h3>
+                    <div className="bg-white dark:bg-dark-card rounded-lg shadow-lg dark:shadow-none dark:border dark:border-dark-border p-6 mb-8 transition-theme">
+                      <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4">Category Spending Trends Over Time</h3>
                       <ResponsiveContainer width="100%" height={400}>
                         <AreaChart data={getFilteredCategoryOverTimeData()}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="date" />
-                          <YAxis tickFormatter={(value) => `$${(value/1000).toFixed(0)}k`} />
-                          <Tooltip formatter={(value) => formatCurrency(value)} />
+                          <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
+                          <XAxis dataKey="date" stroke={chart.axis} />
+                          <YAxis tickFormatter={(value) => `$${(value/1000).toFixed(0)}k`} stroke={chart.axis} />
+                          <Tooltip formatter={(value) => formatCurrency(value)} contentStyle={{ backgroundColor: chart.tooltip.bg, borderColor: chart.tooltip.border, color: chart.tooltip.text }} />
                           <Legend />
                           {getFilteredCategoryData().slice(0, 8).map((category, index) => (
                             <Area
@@ -1631,8 +1640,8 @@ const FinancialTracker = () => {
                               type="monotone"
                               dataKey={category.name}
                               stackId="1"
-                              stroke={COLORS[index % COLORS.length]}
-                              fill={COLORS[index % COLORS.length]}
+                              stroke={getColor(index)}
+                              fill={getColor(index)}
                               fillOpacity={0.6}
                             />
                           ))}
@@ -1643,21 +1652,21 @@ const FinancialTracker = () => {
 
                   {/* Category Comparison - Line Chart */}
                   {getFilteredCategoryOverTimeData().length > 0 && (
-                    <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
-                      <h3 className="text-xl font-bold text-gray-800 mb-4">Category Comparison (Top 5)</h3>
+                    <div className="bg-white dark:bg-dark-card rounded-lg shadow-lg dark:shadow-none dark:border dark:border-dark-border p-6 mb-8 transition-theme">
+                      <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4">Category Comparison (Top 5)</h3>
                       <ResponsiveContainer width="100%" height={350}>
                         <LineChart data={getFilteredCategoryOverTimeData()}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="date" />
-                          <YAxis tickFormatter={(value) => `$${(value/1000).toFixed(1)}k`} />
-                          <Tooltip formatter={(value) => formatCurrency(value)} />
+                          <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
+                          <XAxis dataKey="date" stroke={chart.axis} />
+                          <YAxis tickFormatter={(value) => `$${(value/1000).toFixed(1)}k`} stroke={chart.axis} />
+                          <Tooltip formatter={(value) => formatCurrency(value)} contentStyle={{ backgroundColor: chart.tooltip.bg, borderColor: chart.tooltip.border, color: chart.tooltip.text }} />
                           <Legend />
                           {getFilteredCategoryData().slice(0, 5).map((category, index) => (
                             <Line
                               key={category.name}
                               type="monotone"
                               dataKey={category.name}
-                              stroke={COLORS[index % COLORS.length]}
+                              stroke={getColor(index)}
                               strokeWidth={2}
                               dot={{ r: 4 }}
                               activeDot={{ r: 6 }}
@@ -1674,49 +1683,49 @@ const FinancialTracker = () => {
                 <div>
                   <div className="flex flex-wrap gap-4 mb-6">
                     <div className="flex items-center space-x-2">
-                      <Search className="h-4 w-4 text-gray-400" />
+                      <Search className="h-4 w-4 text-gray-400 dark:text-slate-500" />
                       <input
                         type="text"
                         placeholder="Search transactions, descriptions, categories..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="px-4 py-2 border rounded-lg w-80"
+                        className="px-4 py-2 border rounded-lg w-80 dark:bg-dark-surface dark:border-dark-border dark:text-white dark:placeholder-slate-500"
                       />
                     </div>
-                    
+
                     <select
                       value={categoryFilter}
                       onChange={(e) => setCategoryFilter(e.target.value)}
-                      className="px-4 py-2 border rounded-lg"
+                      className="px-4 py-2 border rounded-lg dark:bg-dark-surface dark:border-dark-border dark:text-white"
                     >
                       <option value="all">All Categories</option>
                       {uniqueCategories.map(cat => (
                         <option key={cat} value={cat}>{cat}</option>
                       ))}
                     </select>
-                    
+
                     <input
                       type="date"
                       value={dateFilter.start}
                       onChange={(e) => setDateFilter(prev => ({...prev, start: e.target.value}))}
-                      className="px-4 py-2 border rounded-lg"
+                      className="px-4 py-2 border rounded-lg dark:bg-dark-surface dark:border-dark-border dark:text-white"
                       placeholder="Start date"
                     />
-                    
+
                     <input
                       type="date"
                       value={dateFilter.end}
                       onChange={(e) => setDateFilter(prev => ({...prev, end: e.target.value}))}
-                      className="px-4 py-2 border rounded-lg"
+                      className="px-4 py-2 border rounded-lg dark:bg-dark-surface dark:border-dark-border dark:text-white"
                       placeholder="End date"
                     />
 
                     <button
                       onClick={() => setShowRefundMatching(!showRefundMatching)}
                       className={`flex items-center px-4 py-2 rounded-lg border ${
-                        showRefundMatching 
-                          ? 'bg-green-50 border-green-300 text-green-700' 
-                          : 'bg-gray-50 border-gray-300 text-gray-700'
+                        showRefundMatching
+                          ? 'bg-green-50 dark:bg-green-900/30 border-green-300 dark:border-green-600 text-green-700 dark:text-green-400'
+                          : 'bg-gray-50 dark:bg-dark-surface border-gray-300 dark:border-dark-border text-gray-700 dark:text-slate-300'
                       }`}
                       title="Match charges with refunds to show net spending"
                     >
@@ -1727,9 +1736,9 @@ const FinancialTracker = () => {
                     <button
                       onClick={() => setShowMonthlySummary(!showMonthlySummary)}
                       className={`flex items-center px-4 py-2 rounded-lg border ${
-                        showMonthlySummary 
-                          ? 'bg-blue-50 border-blue-300 text-blue-700' 
-                          : 'bg-gray-50 border-gray-300 text-gray-700'
+                        showMonthlySummary
+                          ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-300 dark:border-blue-600 text-blue-700 dark:text-blue-400'
+                          : 'bg-gray-50 dark:bg-dark-surface border-gray-300 dark:border-dark-border text-gray-700 dark:text-slate-300'
                       }`}
                     >
                       <BarChart3 className="h-4 w-4 mr-2" />
@@ -1744,7 +1753,7 @@ const FinancialTracker = () => {
                           setDateFilter({ start: '', end: '' });
                           setDisplayLimit(100);
                         }}
-                        className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+                        className="px-4 py-2 bg-gray-100 dark:bg-dark-surface text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-200 dark:hover:bg-dark-border"
                       >
                         Clear Filters
                       </button>
@@ -1752,30 +1761,30 @@ const FinancialTracker = () => {
                   </div>
 
                   <div className="mb-4 flex items-center justify-between">
-                    <span className="text-sm text-gray-600">
+                    <span className="text-sm text-gray-600 dark:text-slate-400">
                       Showing {getFilteredTransactions().length} of {allTransactions.length} transactions
                       {categoryFilter === 'Credits/Refunds' && (
-                        <span className="ml-2 text-green-600 font-medium">
+                        <span className="ml-2 text-green-600 dark:text-green-400 font-medium">
                           (Credits & Refunds only)
                         </span>
                       )}
                     </span>
                     {showRefundMatching && (
-                      <span className="text-sm text-green-600 font-medium">
-                        ✓ Refund matching enabled - showing net spending
+                      <span className="text-sm text-green-600 dark:text-green-400 font-medium">
+                        Refund matching enabled - showing net spending
                       </span>
                     )}
                   </div>
 
                   {/* Date Range Summary */}
                   {(dateFilter.start || dateFilter.end) && getDateRangeSummary() && (
-                    <div className="bg-white rounded-lg shadow mb-6 overflow-hidden">
-                      <div className="bg-indigo-50 px-6 py-4 border-b border-indigo-100">
+                    <div className="bg-white dark:bg-dark-card rounded-lg shadow dark:shadow-none dark:border dark:border-dark-border mb-6 overflow-hidden transition-theme">
+                      <div className="bg-indigo-50 dark:bg-indigo-900/30 px-6 py-4 border-b border-indigo-100 dark:border-indigo-800">
                         <div className="flex items-center justify-between">
-                          <h3 className="text-lg font-semibold text-indigo-900">
+                          <h3 className="text-lg font-semibold text-indigo-900 dark:text-indigo-300">
                             Date Range Summary
                             {dateFilter.start && dateFilter.end && (
-                              <span className="ml-2 text-sm font-normal text-indigo-600">
+                              <span className="ml-2 text-sm font-normal text-indigo-600 dark:text-indigo-400">
                                 ({(() => {
                                   const [sy, sm, sd] = dateFilter.start.split('-').map(Number);
                                   return new Date(sy, sm - 1, sd).toLocaleDateString();
@@ -1787,54 +1796,54 @@ const FinancialTracker = () => {
                             )}
                           </h3>
                           <div className="text-right">
-                            <div className="text-2xl font-bold text-indigo-700">
+                            <div className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">
                               {formatCurrency(getDateRangeSummary()?.totalExpenditure || 0)}
                             </div>
-                            <div className="text-xs text-indigo-500">Total Expenditure</div>
+                            <div className="text-xs text-indigo-500 dark:text-indigo-400">Total Expenditure</div>
                           </div>
                         </div>
                       </div>
                       <div className="p-6">
                         {/* Summary Stats */}
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-                          <div className="bg-gray-50 rounded-lg p-3 text-center">
-                            <div className="text-lg font-semibold text-gray-800">{getDateRangeSummary()?.expenseCount || 0}</div>
-                            <div className="text-xs text-gray-500">Expenses</div>
+                          <div className="bg-gray-50 dark:bg-dark-surface rounded-lg p-3 text-center">
+                            <div className="text-lg font-semibold text-gray-800 dark:text-white">{getDateRangeSummary()?.expenseCount || 0}</div>
+                            <div className="text-xs text-gray-500 dark:text-slate-400">Expenses</div>
                           </div>
-                          <div className="bg-green-50 rounded-lg p-3 text-center">
-                            <div className="text-lg font-semibold text-green-700">{formatCurrency(getDateRangeSummary()?.totalCredits || 0)}</div>
-                            <div className="text-xs text-green-600">Credits/Refunds</div>
+                          <div className="bg-green-50 dark:bg-green-900/30 rounded-lg p-3 text-center">
+                            <div className="text-lg font-semibold text-green-700 dark:text-green-400">{formatCurrency(getDateRangeSummary()?.totalCredits || 0)}</div>
+                            <div className="text-xs text-green-600 dark:text-green-500">Credits/Refunds</div>
                           </div>
-                          <div className="bg-emerald-50 rounded-lg p-3 text-center">
-                            <div className="text-lg font-semibold text-emerald-700">{formatCurrency(getDateRangeSummary()?.totalIncome || 0)}</div>
-                            <div className="text-xs text-emerald-600">Income</div>
+                          <div className="bg-emerald-50 dark:bg-emerald-900/30 rounded-lg p-3 text-center">
+                            <div className="text-lg font-semibold text-emerald-700 dark:text-emerald-400">{formatCurrency(getDateRangeSummary()?.totalIncome || 0)}</div>
+                            <div className="text-xs text-emerald-600 dark:text-emerald-500">Income</div>
                           </div>
-                          <div className="bg-indigo-50 rounded-lg p-3 text-center">
-                            <div className="text-lg font-semibold text-indigo-700">{formatCurrency(getDateRangeSummary()?.totalInvestments || 0)}</div>
-                            <div className="text-xs text-indigo-600">Investments</div>
+                          <div className="bg-indigo-50 dark:bg-indigo-900/30 rounded-lg p-3 text-center">
+                            <div className="text-lg font-semibold text-indigo-700 dark:text-indigo-400">{formatCurrency(getDateRangeSummary()?.totalInvestments || 0)}</div>
+                            <div className="text-xs text-indigo-600 dark:text-indigo-500">Investments</div>
                           </div>
-                          <div className="bg-blue-50 rounded-lg p-3 text-center">
-                            <div className="text-lg font-semibold text-blue-700">{formatCurrency(getDateRangeSummary()?.netSpending || 0)}</div>
-                            <div className="text-xs text-blue-600">Net Spending</div>
+                          <div className="bg-blue-50 dark:bg-blue-900/30 rounded-lg p-3 text-center">
+                            <div className="text-lg font-semibold text-blue-700 dark:text-blue-400">{formatCurrency(getDateRangeSummary()?.netSpending || 0)}</div>
+                            <div className="text-xs text-blue-600 dark:text-blue-500">Net Spending</div>
                           </div>
-                          <div className="bg-purple-50 rounded-lg p-3 text-center">
-                            <div className="text-lg font-semibold text-purple-700">{getDateRangeSummary()?.categories.length || 0}</div>
-                            <div className="text-xs text-purple-600">Categories</div>
+                          <div className="bg-purple-50 dark:bg-purple-900/30 rounded-lg p-3 text-center">
+                            <div className="text-lg font-semibold text-purple-700 dark:text-purple-400">{getDateRangeSummary()?.categories.length || 0}</div>
+                            <div className="text-xs text-purple-600 dark:text-purple-500">Categories</div>
                           </div>
                         </div>
 
                         {/* Category Breakdown */}
-                        <h4 className="text-sm font-medium text-gray-700 mb-3">Spending by Category</h4>
+                        <h4 className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">Spending by Category</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                           {getDateRangeSummary()?.categories.map((cat) => {
                             const percentage = ((cat.total / (getDateRangeSummary()?.totalExpenditure || 1)) * 100).toFixed(1);
                             return (
-                              <div key={cat.category} className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-3">
+                              <div key={cat.category} className="flex items-center justify-between bg-gray-50 dark:bg-dark-surface rounded-lg px-4 py-3">
                                 <div className="flex-1 min-w-0">
-                                  <div className="text-sm font-medium text-gray-800 truncate">{cat.category}</div>
-                                  <div className="text-xs text-gray-500">{percentage}%</div>
+                                  <div className="text-sm font-medium text-gray-800 dark:text-white truncate">{cat.category}</div>
+                                  <div className="text-xs text-gray-500 dark:text-slate-400">{percentage}%</div>
                                 </div>
-                                <div className="text-sm font-bold text-gray-900 ml-3">
+                                <div className="text-sm font-bold text-gray-900 dark:text-white ml-3">
                                   {formatCurrency(cat.total)}
                                 </div>
                               </div>
@@ -1847,26 +1856,26 @@ const FinancialTracker = () => {
 
                   {/* Monthly Category Summary */}
                   {showMonthlySummary && getMonthlyCategoryTotals().length > 0 && (
-                    <div className="bg-white rounded-lg shadow mb-8 overflow-hidden">
-                      <div className="bg-gray-50 px-6 py-4 border-b">
-                        <h3 className="text-lg font-semibold text-gray-800">Monthly Spending by Category</h3>
+                    <div className="bg-white dark:bg-dark-card rounded-lg shadow dark:shadow-none dark:border dark:border-dark-border mb-8 overflow-hidden transition-theme">
+                      <div className="bg-gray-50 dark:bg-dark-surface px-6 py-4 border-b dark:border-dark-border">
+                        <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Monthly Spending by Category</h3>
                       </div>
                       <div className="overflow-x-auto">
                         <div className="px-6 py-4">
                           <div className="grid gap-6">
                             {getMonthlyCategoryTotals().map((monthData) => (
-                              <div key={monthData.month} className="border rounded-lg p-4">
+                              <div key={monthData.month} className="border dark:border-dark-border rounded-lg p-4">
                                 <div className="flex items-center justify-between mb-3">
-                                  <h4 className="font-semibold text-gray-800">{monthData.month}</h4>
-                                  <span className="text-lg font-bold text-blue-600">
+                                  <h4 className="font-semibold text-gray-800 dark:text-white">{monthData.month}</h4>
+                                  <span className="text-lg font-bold text-blue-600 dark:text-accent-blue">
                                     {formatCurrency(monthData.monthTotal)}
                                   </span>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                                   {monthData.categories.map((cat) => (
-                                    <div key={cat.category} className="flex items-center justify-between bg-gray-50 rounded px-3 py-2">
-                                      <span className="text-sm text-gray-700 truncate mr-2">{cat.category}</span>
-                                      <span className="text-sm font-semibold text-gray-900">
+                                    <div key={cat.category} className="flex items-center justify-between bg-gray-50 dark:bg-dark-surface rounded px-3 py-2">
+                                      <span className="text-sm text-gray-700 dark:text-slate-300 truncate mr-2">{cat.category}</span>
+                                      <span className="text-sm font-semibold text-gray-900 dark:text-white">
                                         {formatCurrency(cat.total)}
                                       </span>
                                     </div>
@@ -1880,44 +1889,44 @@ const FinancialTracker = () => {
                     </div>
                   )}
 
-                  <div className="bg-white rounded-lg overflow-hidden shadow">
+                  <div className="bg-white dark:bg-dark-card rounded-lg overflow-hidden shadow dark:shadow-none dark:border dark:border-dark-border transition-theme">
                     <table className="w-full">
-                      <thead className="bg-gray-50">
+                      <thead className="bg-gray-50 dark:bg-dark-surface">
                         <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Source</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Date</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">User</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Source</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Description</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Category</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Amount</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Actions</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-200">
+                      <tbody className="divide-y divide-gray-200 dark:divide-dark-border">
                         {getFilteredTransactions().slice(0, (dateFilter.start || dateFilter.end) ? undefined : displayLimit).map((transaction) => {
                           const netTransaction = showRefundMatching ? getNetTransactions([transaction])[0] : transaction;
                           const isRefunded = netTransaction?.isRefunded;
-                          
+
                           return (
-                            <tr key={transaction.id} className={`hover:bg-gray-50 ${isRefunded ? 'bg-yellow-50' : ''}`}>
-                              <td className="px-4 py-4 text-sm text-gray-900">
+                            <tr key={transaction.id} className={`hover:bg-gray-50 dark:hover:bg-dark-surface ${isRefunded ? 'bg-yellow-50 dark:bg-yellow-900/20' : ''}`}>
+                              <td className="px-4 py-4 text-sm text-gray-900 dark:text-white">
                                 {transaction.date.toLocaleDateString()}
                               </td>
-                              <td className="px-4 py-4 text-sm text-gray-700">
-                                <span className="px-2 py-1 bg-gray-100 rounded text-xs font-medium">
+                              <td className="px-4 py-4 text-sm text-gray-700 dark:text-slate-300">
+                                <span className="px-2 py-1 bg-gray-100 dark:bg-dark-surface rounded text-xs font-medium">
                                   {transaction.user || 'Unknown'}
                                 </span>
                               </td>
-                              <td className="px-4 py-4 text-sm text-gray-600">
-                                <span className="px-2 py-1 bg-indigo-50 rounded text-xs font-medium text-indigo-700">
+                              <td className="px-4 py-4 text-sm text-gray-600 dark:text-slate-400">
+                                <span className="px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 rounded text-xs font-medium text-indigo-700 dark:text-indigo-400">
                                   {transaction.source || 'Unknown'}
                                 </span>
                               </td>
-                              <td className="px-6 py-4 text-sm text-gray-900 max-w-md">
+                              <td className="px-6 py-4 text-sm text-gray-900 dark:text-white max-w-md">
                                 <div className="break-words">
                                   {transaction.description}
                                   {isRefunded && (
-                                    <span className="ml-2 text-xs bg-yellow-200 text-yellow-800 px-2 py-1 rounded">
+                                    <span className="ml-2 text-xs bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200 px-2 py-1 rounded">
                                       REFUNDED
                                     </span>
                                   )}
@@ -1926,14 +1935,14 @@ const FinancialTracker = () => {
                               <td className="px-6 py-4 text-sm">
                                 {editingTransaction === transaction.id ? (
                                   transaction.isImmutableCategory ? (
-                                    <span className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-600">
+                                    <span className="px-2 py-1 rounded text-xs font-medium bg-gray-100 dark:bg-dark-surface text-gray-600 dark:text-slate-400">
                                       Credits/Refunds (Locked)
                                     </span>
                                   ) : (
                                     <select
                                       value={transaction.category}
                                       onChange={(e) => updateTransactionCategory(transaction.id, e.target.value)}
-                                      className="px-2 py-1 border rounded text-sm"
+                                      className="px-2 py-1 border dark:border-dark-border rounded text-sm dark:bg-dark-surface dark:text-white"
                                       autoFocus
                                     >
                                       {getAllCategories().map(cat => (
@@ -1950,7 +1959,7 @@ const FinancialTracker = () => {
                                   }`}>
                                     {transaction.category}
                                     {transaction.isImmutableCategory && (
-                                      <span className="ml-1 text-xs">🔒</span>
+                                      <span className="ml-1 text-xs">locked</span>
                                     )}
                                     {!transaction.isImmutableCategory && findMatchingMerchant(extractMerchant(transaction.description.toLowerCase()), learningModel) && (
                                       <Brain className="inline h-3 w-3 ml-1" title="AI Learned" />
@@ -1961,13 +1970,13 @@ const FinancialTracker = () => {
                               <td className="px-6 py-4 text-sm font-medium whitespace-nowrap">
                                 <div className="flex flex-col">
                                   <span className={`${
-                                    isRefunded ? 'line-through text-gray-400' :
-                                    transaction.isCredit ? 'text-green-600' : 'text-red-600'
+                                    isRefunded ? 'line-through text-gray-400 dark:text-slate-500' :
+                                    transaction.isCredit ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                                   }`}>
                                     {transaction.isCredit ? '+' : ''}{formatCurrency(Math.abs(transaction.amount))}
                                   </span>
                                   {isRefunded && (
-                                    <span className="text-green-600 text-xs">
+                                    <span className="text-green-600 dark:text-green-400 text-xs">
                                       Net: {formatCurrency(netTransaction.netAmount || 0)}
                                     </span>
                                   )}
@@ -1975,13 +1984,13 @@ const FinancialTracker = () => {
                               </td>
                               <td className="px-4 py-4 text-sm">
                                 {transaction.isImmutableCategory ? (
-                                  <span className="text-gray-400 text-xs">Locked</span>
+                                  <span className="text-gray-400 dark:text-slate-500 text-xs">Locked</span>
                                 ) : (
                                   <button
                                     onClick={() => setEditingTransaction(
                                       editingTransaction === transaction.id ? null : transaction.id
                                     )}
-                                    className="text-blue-600 hover:text-blue-800"
+                                    className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
                                     title="Edit category"
                                   >
                                     <Edit2 className="h-4 w-4" />
@@ -1993,16 +2002,16 @@ const FinancialTracker = () => {
                         })}
                       </tbody>
                     </table>
-                    
+
                     {/* Show More button when no date filter and more transactions exist */}
                     {!(dateFilter.start || dateFilter.end) && getFilteredTransactions().length > displayLimit && (
-                      <div className="px-6 py-4 bg-gray-50 text-center">
-                        <span className="text-sm text-gray-600 mr-4">
+                      <div className="px-6 py-4 bg-gray-50 dark:bg-dark-surface text-center">
+                        <span className="text-sm text-gray-600 dark:text-slate-400 mr-4">
                           Showing {displayLimit} of {getFilteredTransactions().length} transactions
                         </span>
                         <button
                           onClick={() => setDisplayLimit(prev => prev + 100)}
-                          className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
+                          className="px-4 py-2 bg-blue-600 dark:bg-accent-blue text-white text-sm rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600"
                         >
                           Show More
                         </button>
@@ -2016,10 +2025,10 @@ const FinancialTracker = () => {
                 <div>
                   <div className="mb-6">
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-semibold">Manage Categories</h3>
+                      <h3 className="text-lg font-semibold dark:text-white">Manage Categories</h3>
                       <button
                         onClick={() => setShowAddCategory(!showAddCategory)}
-                        className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                        className="flex items-center px-4 py-2 bg-blue-600 dark:bg-accent-blue text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600"
                       >
                         <Plus className="h-4 w-4 mr-2" />
                         Add Category
@@ -2027,17 +2036,17 @@ const FinancialTracker = () => {
                     </div>
 
                     {showAddCategory && (
-                      <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                        <h4 className="font-medium mb-3">Create New Category</h4>
+                      <div className="bg-gray-50 dark:bg-dark-surface rounded-lg p-4 mb-6">
+                        <h4 className="font-medium mb-3 dark:text-white">Create New Category</h4>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                               Parent Category (Optional)
                             </label>
                             <select
                               value={newCategoryParent}
                               onChange={(e) => setNewCategoryParent(e.target.value)}
-                              className="w-full px-3 py-2 border rounded-lg"
+                              className="w-full px-3 py-2 border dark:border-dark-border rounded-lg dark:bg-dark-card dark:text-white"
                             >
                               <option value="">No Parent (Main Category)</option>
                               {BASE_CATEGORIES.map(cat => (
@@ -2046,7 +2055,7 @@ const FinancialTracker = () => {
                             </select>
                           </div>
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                               Category Name
                             </label>
                             <input
@@ -2054,7 +2063,7 @@ const FinancialTracker = () => {
                               value={newCategoryName}
                               onChange={(e) => setNewCategoryName(e.target.value)}
                               placeholder="e.g., Coffee Shops, Auto Maintenance"
-                              className="w-full px-3 py-2 border rounded-lg"
+                              className="w-full px-3 py-2 border dark:border-dark-border rounded-lg dark:bg-dark-card dark:text-white dark:placeholder-slate-500"
                               onKeyPress={(e) => e.key === 'Enter' && addCustomCategory()}
                             />
                           </div>
@@ -2071,15 +2080,15 @@ const FinancialTracker = () => {
                                 setNewCategoryName('');
                                 setNewCategoryParent('');
                               }}
-                              className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
+                              className="px-4 py-2 bg-gray-300 dark:bg-dark-border text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-400 dark:hover:bg-slate-600"
                             >
                               Cancel
                             </button>
                           </div>
                         </div>
                         {newCategoryParent && newCategoryName && (
-                          <div className="mt-3 text-sm text-gray-600">
-                            Preview: <span className="font-medium">{newCategoryParent} - {newCategoryName}</span>
+                          <div className="mt-3 text-sm text-gray-600 dark:text-slate-400">
+                            Preview: <span className="font-medium dark:text-white">{newCategoryParent} - {newCategoryName}</span>
                           </div>
                         )}
                       </div>
@@ -2087,30 +2096,30 @@ const FinancialTracker = () => {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="bg-white rounded-lg shadow p-6">
-                      <h4 className="font-semibold mb-4">Predefined Categories</h4>
+                    <div className="bg-white dark:bg-dark-card rounded-lg shadow dark:shadow-none dark:border dark:border-dark-border p-6 transition-theme">
+                      <h4 className="font-semibold mb-4 dark:text-white">Predefined Categories</h4>
                       <div className="space-y-2 max-h-96 overflow-y-auto">
                         {PREDEFINED_CATEGORIES.map(category => (
-                          <div key={category} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                            <span className="text-sm">{category}</span>
-                            <span className="text-xs text-gray-500">Built-in</span>
+                          <div key={category} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-dark-surface rounded">
+                            <span className="text-sm dark:text-slate-300">{category}</span>
+                            <span className="text-xs text-gray-500 dark:text-slate-500">Built-in</span>
                           </div>
                         ))}
                       </div>
                     </div>
 
-                    <div className="bg-white rounded-lg shadow p-6">
-                      <h4 className="font-semibold mb-4">Custom Categories ({customCategories.length})</h4>
+                    <div className="bg-white dark:bg-dark-card rounded-lg shadow dark:shadow-none dark:border dark:border-dark-border p-6 transition-theme">
+                      <h4 className="font-semibold mb-4 dark:text-white">Custom Categories ({customCategories.length})</h4>
                       {customCategories.length === 0 ? (
-                        <p className="text-gray-500 text-sm">No custom categories yet. Create one above!</p>
+                        <p className="text-gray-500 dark:text-slate-400 text-sm">No custom categories yet. Create one above!</p>
                       ) : (
                         <div className="space-y-2 max-h-96 overflow-y-auto">
                           {customCategories.map(category => (
-                            <div key={category} className="flex items-center justify-between p-2 bg-blue-50 rounded">
-                              <span className="text-sm">{category}</span>
+                            <div key={category} className="flex items-center justify-between p-2 bg-blue-50 dark:bg-blue-900/30 rounded">
+                              <span className="text-sm dark:text-slate-300">{category}</span>
                               <button
                                 onClick={() => removeCustomCategory(category)}
-                                className="text-red-600 hover:text-red-800 p-1"
+                                className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 p-1"
                                 title="Delete category"
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -2122,11 +2131,11 @@ const FinancialTracker = () => {
                     </div>
                   </div>
 
-                    <div className="mt-6 p-4 bg-green-50 rounded-lg">
+                    <div className="mt-6 p-4 bg-green-50 dark:bg-green-900/30 rounded-lg">
                       <div className="flex items-start">
-                        <div className="text-green-600 mr-2">✅</div>
-                        <div className="text-sm text-green-800">
-                          <strong>Automatic Persistence:</strong> All custom categories are automatically saved and will persist across browser sessions. 
+                        <div className="text-green-600 dark:text-green-400 mr-2">+</div>
+                        <div className="text-sm text-green-800 dark:text-green-300">
+                          <strong>Automatic Persistence:</strong> All custom categories are automatically saved and will persist across browser sessions.
                           Deleting a custom category will reassign all transactions using that category to "Other".
                         </div>
                       </div>
@@ -2137,10 +2146,10 @@ const FinancialTracker = () => {
               {activeTab === 'categories' && (
                 <div>
                   <div className="mb-6">
-                    <h3 className="text-lg font-semibold mb-4">Select Categories to Compare</h3>
+                    <h3 className="text-lg font-semibold mb-4 dark:text-white">Select Categories to Compare</h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                       {uniqueCategories.filter(cat => cat !== 'Credits/Refunds').map(category => (
-                        <label key={category} className="flex items-center space-x-2">
+                        <label key={category} className="flex items-center space-x-2 dark:text-slate-300">
                           <input
                             type="checkbox"
                             checked={selectedCategories.has(category)}
@@ -2153,7 +2162,7 @@ const FinancialTracker = () => {
                               }
                               setSelectedCategories(newSet);
                             }}
-                            className="rounded"
+                            className="rounded dark:bg-dark-surface dark:border-dark-border"
                           />
                           <span className="text-sm">{category}</span>
                         </label>
@@ -2162,60 +2171,61 @@ const FinancialTracker = () => {
                   </div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div className="bg-white rounded-lg shadow-lg p-6">
-                      <h3 className="text-xl font-bold text-gray-800 mb-4">Category Comparison</h3>
+                    <div className="bg-white dark:bg-dark-card rounded-lg shadow-lg dark:shadow-none dark:border dark:border-dark-border p-6 transition-theme">
+                      <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4">Category Comparison</h3>
                       <ResponsiveContainer width="100%" height={300}>
                         <BarChart data={getMultiCategoryData()}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
-                          <YAxis tickFormatter={(value) => `$${(value/1000).toFixed(0)}k`} />
-                          <Tooltip formatter={(value) => formatCurrency(value)} />
-                          <Bar dataKey="value" fill="#8884d8" />
+                          <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
+                          <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} stroke={chart.axis} />
+                          <YAxis tickFormatter={(value) => `$${(value/1000).toFixed(0)}k`} stroke={chart.axis} />
+                          <Tooltip formatter={(value) => formatCurrency(value)} contentStyle={{ backgroundColor: chart.tooltip.bg, borderColor: chart.tooltip.border, color: chart.tooltip.text }} />
+                          <Bar dataKey="value" fill={getColor(0)} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
 
-                    <div className="bg-white rounded-lg shadow-lg p-6">
-                      <h3 className="text-xl font-bold text-gray-800 mb-4">Transaction Count vs Amount</h3>
+                    <div className="bg-white dark:bg-dark-card rounded-lg shadow-lg dark:shadow-none dark:border dark:border-dark-border p-6 transition-theme">
+                      <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4">Transaction Count vs Amount</h3>
                       <ResponsiveContainer width="100%" height={300}>
                         <ScatterChart data={getMultiCategoryData()}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="count" name="transactions" />
-                          <YAxis dataKey="value" name="amount" tickFormatter={(value) => `$${(value/1000).toFixed(0)}k`} />
-                          <Tooltip 
+                          <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
+                          <XAxis dataKey="count" name="transactions" stroke={chart.axis} />
+                          <YAxis dataKey="value" name="amount" tickFormatter={(value) => `$${(value/1000).toFixed(0)}k`} stroke={chart.axis} />
+                          <Tooltip
                             formatter={(value, name) => [
                               name === 'value' ? formatCurrency(value) : value,
                               name === 'value' ? 'Total Amount' : 'Transaction Count'
                             ]}
                             labelFormatter={(label) => `Category: ${getMultiCategoryData()[label]?.name || ''}`}
+                            contentStyle={{ backgroundColor: chart.tooltip.bg, borderColor: chart.tooltip.border, color: chart.tooltip.text }}
                           />
-                          <Scatter dataKey="value" fill="#8884d8" />
+                          <Scatter dataKey="value" fill={getColor(0)} />
                         </ScatterChart>
                       </ResponsiveContainer>
                     </div>
                   </div>
 
-                  <div className="mt-8 bg-white rounded-lg shadow-lg p-6" key={refreshKey}>
-                    <h3 className="text-xl font-bold text-gray-800 mb-4">Category Details</h3>
+                  <div className="mt-8 bg-white dark:bg-dark-card rounded-lg shadow-lg dark:shadow-none dark:border dark:border-dark-border p-6 transition-theme" key={refreshKey}>
+                    <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4">Category Details</h3>
                     <div className="space-y-4">
                       {getMultiCategoryData().map((category, index) => (
-                        <div key={`${category.name}-${refreshKey}`} className="border rounded-lg overflow-hidden">
+                        <div key={`${category.name}-${refreshKey}`} className="border dark:border-dark-border rounded-lg overflow-hidden">
                           <div
-                            className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                            className="p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors"
                             onClick={() => setExpandedCategory(expandedCategory === category.name ? null : category.name)}
                           >
                             <div className="flex items-center justify-between">
                               <div className="flex items-center flex-1">
                                 <div
                                   className="w-4 h-4 rounded mr-3"
-                                  style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                                  style={{ backgroundColor: getColor(index) }}
                                 ></div>
                                 <div className="flex-1">
-                                  <h4 className="font-semibold text-gray-900">{category.name}</h4>
+                                  <h4 className="font-semibold text-gray-900 dark:text-white">{category.name}</h4>
                                   <div className="flex items-center space-x-4 mt-1">
-                                    <p className="text-sm text-gray-600">{category.count} transactions</p>
+                                    <p className="text-sm text-gray-600 dark:text-slate-400">{category.count} transactions</p>
                                     {category.credits > 0 && (
-                                      <p className="text-sm text-green-600">
+                                      <p className="text-sm text-green-600 dark:text-green-400">
                                         {formatCurrency(category.credits)} in credits
                                       </p>
                                     )}
@@ -2223,14 +2233,14 @@ const FinancialTracker = () => {
                                 </div>
                               </div>
                               <div className="text-right ml-4">
-                                <p className="text-2xl font-bold text-gray-800">{formatCurrency(category.value)}</p>
-                                <p className="text-sm text-gray-600">Avg: {formatCurrency(category.avgTransaction)}</p>
+                                <p className="text-2xl font-bold text-gray-800 dark:text-white">{formatCurrency(category.value)}</p>
+                                <p className="text-sm text-gray-600 dark:text-slate-400">Avg: {formatCurrency(category.avgTransaction)}</p>
                               </div>
                               <div className="ml-4">
                                 {expandedCategory === category.name ? (
-                                  <Eye className="h-5 w-5 text-blue-600" />
+                                  <Eye className="h-5 w-5 text-blue-600 dark:text-accent-blue" />
                                 ) : (
-                                  <EyeOff className="h-5 w-5 text-gray-400" />
+                                  <EyeOff className="h-5 w-5 text-gray-400 dark:text-slate-500" />
                                 )}
                               </div>
                             </div>
@@ -2238,42 +2248,42 @@ const FinancialTracker = () => {
 
                           {/* Expandable Transaction List */}
                           {expandedCategory === category.name && category.transactions && (
-                            <div className="border-t bg-gray-50 p-4">
-                              <h5 className="font-semibold text-gray-700 mb-3">
+                            <div className="border-t dark:border-dark-border bg-gray-50 dark:bg-dark-surface p-4">
+                              <h5 className="font-semibold text-gray-700 dark:text-slate-300 mb-3">
                                 All Transactions ({category.transactions.length})
                               </h5>
                               <div className="max-h-96 overflow-y-auto">
                                 <table className="w-full text-sm">
-                                  <thead className="bg-gray-100 sticky top-0">
+                                  <thead className="bg-gray-100 dark:bg-dark-card sticky top-0">
                                     <tr>
-                                      <th className="px-3 py-2 text-left">Date</th>
-                                      <th className="px-3 py-2 text-left">User</th>
-                                      <th className="px-3 py-2 text-left">Source</th>
-                                      <th className="px-3 py-2 text-left">Description</th>
-                                      <th className="px-3 py-2 text-left">Category</th>
-                                      <th className="px-3 py-2 text-right">Amount</th>
-                                      <th className="px-3 py-2 text-center">Action</th>
+                                      <th className="px-3 py-2 text-left dark:text-slate-300">Date</th>
+                                      <th className="px-3 py-2 text-left dark:text-slate-300">User</th>
+                                      <th className="px-3 py-2 text-left dark:text-slate-300">Source</th>
+                                      <th className="px-3 py-2 text-left dark:text-slate-300">Description</th>
+                                      <th className="px-3 py-2 text-left dark:text-slate-300">Category</th>
+                                      <th className="px-3 py-2 text-right dark:text-slate-300">Amount</th>
+                                      <th className="px-3 py-2 text-center dark:text-slate-300">Action</th>
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-gray-200">
                                     {category.transactions
                                       .sort((a, b) => b.date - a.date)
                                       .map((transaction, idx) => (
-                                        <tr key={transaction.id} className="hover:bg-white">
-                                          <td className="px-3 py-2 text-gray-600 whitespace-nowrap">
+                                        <tr key={transaction.id} className="hover:bg-white dark:hover:bg-dark-card">
+                                          <td className="px-3 py-2 text-gray-600 dark:text-slate-400 whitespace-nowrap">
                                             {transaction.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                           </td>
-                                          <td className="px-3 py-2 text-gray-600">
-                                            <span className="px-2 py-0.5 bg-gray-100 rounded text-xs">
+                                          <td className="px-3 py-2 text-gray-600 dark:text-slate-400">
+                                            <span className="px-2 py-0.5 bg-gray-100 dark:bg-dark-card rounded text-xs">
                                               {transaction.user || 'Unknown'}
                                             </span>
                                           </td>
-                                          <td className="px-3 py-2 text-gray-600">
-                                            <span className="px-2 py-0.5 bg-indigo-50 rounded text-xs text-indigo-700">
+                                          <td className="px-3 py-2 text-gray-600 dark:text-slate-400">
+                                            <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 rounded text-xs text-indigo-700 dark:text-indigo-400">
                                               {transaction.source || 'Unknown'}
                                             </span>
                                           </td>
-                                          <td className="px-3 py-2 text-gray-900 max-w-sm">
+                                          <td className="px-3 py-2 text-gray-900 dark:text-white max-w-sm">
                                             <div className="break-words text-xs">
                                               {transaction.description}
                                             </div>
@@ -2281,14 +2291,14 @@ const FinancialTracker = () => {
                                           <td className="px-3 py-2">
                                             {editingTransaction === transaction.id ? (
                                               transaction.isImmutableCategory ? (
-                                                <span className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-600">
+                                                <span className="px-2 py-1 rounded text-xs font-medium bg-gray-100 dark:bg-dark-card text-gray-600 dark:text-slate-400">
                                                   {transaction.category} (Locked)
                                                 </span>
                                               ) : (
                                                 <select
                                                   value={transaction.category}
                                                   onChange={(e) => updateTransactionCategory(transaction.id, e.target.value)}
-                                                  className="px-2 py-1 border rounded text-xs w-full"
+                                                  className="px-2 py-1 border dark:border-dark-border rounded text-xs w-full dark:bg-dark-card dark:text-white"
                                                   autoFocus
                                                   onClick={(e) => e.stopPropagation()}
                                                 >
@@ -2299,15 +2309,15 @@ const FinancialTracker = () => {
                                               )
                                             ) : (
                                               <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                                transaction.category === 'Credits/Refunds' ? 'bg-green-100 text-green-800' :
-                                                transaction.category === 'Payment' ? 'bg-purple-100 text-purple-800' :
-                                                transaction.category === 'Other' ? 'bg-gray-100 text-gray-800' :
-                                                findMatchingMerchant(extractMerchant(transaction.description.toLowerCase()), learningModel) ? 'bg-green-100 text-green-800' :
-                                                'bg-blue-100 text-blue-800'
+                                                transaction.category === 'Credits/Refunds' ? 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-400' :
+                                                transaction.category === 'Payment' ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-400' :
+                                                transaction.category === 'Other' ? 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300' :
+                                                findMatchingMerchant(extractMerchant(transaction.description.toLowerCase()), learningModel) ? 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-400' :
+                                                'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-400'
                                               }`}>
                                                 {transaction.category}
                                                 {transaction.isImmutableCategory && (
-                                                  <span className="ml-1 text-xs">🔒</span>
+                                                  <span className="ml-1 text-xs">locked</span>
                                                 )}
                                                 {!transaction.isImmutableCategory && findMatchingMerchant(extractMerchant(transaction.description.toLowerCase()), learningModel) && (
                                                   <Brain className="inline h-3 w-3 ml-1" title="AI Learned" />
@@ -2316,13 +2326,13 @@ const FinancialTracker = () => {
                                             )}
                                           </td>
                                           <td className={`px-3 py-2 text-right font-medium whitespace-nowrap ${
-                                            transaction.amount < 0 ? 'text-green-600' : 'text-gray-900'
+                                            transaction.amount < 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'
                                           }`}>
                                             {transaction.amount < 0 ? '+' : ''}{formatCurrency(Math.abs(transaction.amount))}
                                           </td>
                                           <td className="px-3 py-2 text-center">
                                             {transaction.isImmutableCategory ? (
-                                              <span className="text-gray-400 text-xs">Locked</span>
+                                              <span className="text-gray-400 dark:text-slate-500 text-xs">Locked</span>
                                             ) : (
                                               <button
                                                 onClick={(e) => {
@@ -2331,7 +2341,7 @@ const FinancialTracker = () => {
                                                     editingTransaction === transaction.id ? null : transaction.id
                                                   );
                                                 }}
-                                                className="text-blue-600 hover:text-blue-800"
+                                                className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
                                                 title="Edit category"
                                               >
                                                 <Edit2 className="h-4 w-4" />
@@ -2354,61 +2364,61 @@ const FinancialTracker = () => {
 
               {activeTab === 'insights' && (
                 <div className="space-y-8">
-                  <div className="bg-white rounded-lg shadow-lg p-6">
-                    <h3 className="text-xl font-bold text-gray-800 mb-4">Spending Insights</h3>
+                  <div className="bg-white dark:bg-dark-card rounded-lg shadow-lg dark:shadow-none dark:border dark:border-dark-border p-6 transition-theme">
+                    <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4">Spending Insights</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="bg-blue-50 rounded-lg p-4">
-                        <h4 className="font-semibold text-blue-800 mb-2">Top Spending Category</h4>
-                        <p className="text-2xl font-bold text-blue-900">
+                      <div className="bg-blue-50 dark:bg-blue-900/30 rounded-lg p-4">
+                        <h4 className="font-semibold text-blue-800 dark:text-blue-300 mb-2">Top Spending Category</h4>
+                        <p className="text-2xl font-bold text-blue-900 dark:text-blue-200">
                           {categoryData[0]?.name || 'N/A'}
                         </p>
-                        <p className="text-blue-700">
+                        <p className="text-blue-700 dark:text-blue-400">
                           {categoryData[0] ? formatCurrency(categoryData[0].value) : '$0'}
                         </p>
                       </div>
-                      
-                      <div className="bg-green-50 rounded-lg p-4">
-                        <h4 className="font-semibold text-green-800 mb-2">Best Savings Month</h4>
-                        <p className="text-2xl font-bold text-green-900">
-                          {monthlyData.reduce((best, current) => 
+
+                      <div className="bg-green-50 dark:bg-green-900/30 rounded-lg p-4">
+                        <h4 className="font-semibold text-green-800 dark:text-green-300 mb-2">Best Savings Month</h4>
+                        <p className="text-2xl font-bold text-green-900 dark:text-green-200">
+                          {monthlyData.reduce((best, current) =>
                             current.savings > (best?.savings || -Infinity) ? current : best, null
                           )?.date || 'N/A'}
                         </p>
-                        <p className="text-green-700">
+                        <p className="text-green-700 dark:text-green-400">
                           {monthlyData.length > 0 ? formatCurrency(Math.max(...monthlyData.map(m => m.savings))) : '$0'}
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="bg-white rounded-lg shadow-lg p-6">
-                    <h3 className="text-xl font-bold text-gray-800 mb-4">AI Learning Progress</h3>
+                  <div className="bg-white dark:bg-dark-card rounded-lg shadow-lg dark:shadow-none dark:border dark:border-dark-border p-6 transition-theme">
+                    <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4">AI Learning Progress</h3>
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between dark:text-slate-300">
                         <span>Merchants Learned</span>
-                        <span className="font-bold">{learningModel.size}</span>
+                        <span className="font-bold dark:text-white">{learningModel.size}</span>
                       </div>
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between dark:text-slate-300">
                         <span>Total Transactions</span>
-                        <span className="font-bold">{allTransactions.length}</span>
+                        <span className="font-bold dark:text-white">{allTransactions.length}</span>
                       </div>
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between dark:text-slate-300">
                         <span>Auto-categorization Rate</span>
-                        <span className="font-bold">
+                        <span className="font-bold dark:text-white">
                           {allTransactions.length > 0 ?
                             Math.round((allTransactions.filter(t => findMatchingMerchant(extractMerchant(t.description.toLowerCase()), learningModel)).length / allTransactions.length) * 100) : 0}%
                         </span>
                       </div>
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between dark:text-slate-300">
                         <span>Model Persistence</span>
-                        <span className="font-bold text-green-600">✓ Saved Automatically</span>
+                        <span className="font-bold text-green-600 dark:text-green-400">Saved Automatically</span>
                       </div>
                     </div>
-                    
+
                     <div className="mt-6 flex justify-center space-x-4">
                       <button
                         onClick={exportLearningModel}
-                        className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                        className="flex items-center px-4 py-2 bg-blue-600 dark:bg-accent-blue text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600"
                         disabled={learningModel.size === 0}
                       >
                         <Download className="h-4 w-4 mr-2" />
@@ -2429,19 +2439,19 @@ const FinancialTracker = () => {
                         Import AI Model
                       </label>
                     </div>
-                    
+
                     {learningModel.size > 0 && (
                       <div className="mt-6">
-                        <h4 className="font-semibold mb-3">Learned Patterns:</h4>
+                        <h4 className="font-semibold mb-3 dark:text-white">Learned Patterns:</h4>
                         <div className="max-h-40 overflow-y-auto space-y-1">
                           {Array.from(learningModel.entries()).slice(0, 10).map(([merchant, category]) => (
-                            <div key={merchant} className="text-sm bg-gray-50 rounded px-3 py-2 flex justify-between">
-                              <span className="text-gray-700">"{merchant}"</span>
-                              <span className="text-blue-600 font-medium">{category}</span>
+                            <div key={merchant} className="text-sm bg-gray-50 dark:bg-dark-surface rounded px-3 py-2 flex justify-between">
+                              <span className="text-gray-700 dark:text-slate-300">"{merchant}"</span>
+                              <span className="text-blue-600 dark:text-accent-blue font-medium">{category}</span>
                             </div>
                           ))}
                           {learningModel.size > 10 && (
-                            <div className="text-sm text-gray-500 text-center py-2">
+                            <div className="text-sm text-gray-500 dark:text-slate-400 text-center py-2">
                               ... and {learningModel.size - 10} more patterns
                             </div>
                           )}
@@ -2456,7 +2466,7 @@ const FinancialTracker = () => {
         )}
 
         {allTransactions.length > 0 && (
-          <div className="mt-8 text-center text-gray-600">
+          <div className="mt-8 text-center text-gray-600 dark:text-slate-400">
             <p>
               Processed {allTransactions.length} transactions from {new Set(statements.map(s => s.source)).size} statement(s)
             </p>
