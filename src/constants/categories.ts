@@ -15,47 +15,65 @@ export const BASE_CATEGORIES = [
   'Personal Care', 'Gifts & Donations', 'Subscriptions', 'Phone & Internet', 'Other'
 ];
 
+// iOS-inspired Copilot Money color palette
 export const COLORS = [
-  '#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#8dd1e1',
-  '#d084d0', '#ffb347', '#87ceeb', '#dda0dd', '#98fb98'
+  '#0263c5',  // Primary blue (Copilot accent)
+  '#00a67d',  // Teal green
+  '#ff9500',  // Orange
+  '#af52de',  // Purple
+  '#5856d6',  // Indigo
+  '#ff3b30',  // Red
+  '#34c759',  // Green
+  '#007aff',  // iOS blue
+  '#ff6482',  // Pink
+  '#8e8e93',  // Gray
 ];
 
+// Softer colors for dark mode
 export const COLORS_DARK = [
-  '#a78bfa', '#34d399', '#fbbf24', '#f87171', '#67e8f9',
-  '#e879f9', '#fb923c', '#7dd3fc', '#f0abfc', '#86efac'
+  '#4da3ff',  // Softer blue
+  '#2dd4a8',  // Softer teal
+  '#ffb347',  // Softer orange
+  '#c77dff',  // Softer purple
+  '#7b7bff',  // Softer indigo
+  '#ff6b6b',  // Softer red
+  '#5ce07a',  // Softer green
+  '#5ab0ff',  // Softer iOS blue
+  '#ff8fa3',  // Softer pink
+  '#a8a8ad',  // Softer gray
 ];
 
 export const CHART_COLORS = {
   light: {
-    grid: '#e5e7eb',
-    axis: '#6b7280',
+    grid: '#f0f0f0',  // Very subtle grid
+    axis: '#8e8e93',
     tooltip: {
       bg: '#ffffff',
-      border: '#e5e7eb',
-      text: '#374151',
+      border: 'rgba(0, 0, 0, 0.08)',
+      text: '#1c1c1e',
     },
-    expense: '#ef4444',
-    income: '#22c55e',
-    credit: '#3b82f6',
+    expense: '#ff3b30',
+    income: '#34c759',
+    credit: '#007aff',
     area: {
-      expense: '#fecaca',
-      income: '#bbf7d0',
+      expense: 'rgba(255, 59, 48, 0.15)',
+      income: 'rgba(52, 199, 89, 0.15)',
     },
   },
   dark: {
-    grid: '#1e3a5f',
-    axis: '#94a3b8',
+    grid: '#2c2c2e',  // Very subtle dark grid
+    axis: '#8e8e93',
     tooltip: {
-      bg: '#0f2744',
-      border: '#1e3a5f',
-      text: '#e2e8f0',
+      bg: '#1c1c1e',
+      border: '#3a3a3c',
+      text: '#f5f5f7',
     },
-    expense: '#f87171',
-    income: '#4ade80',
-    credit: '#60a5fa',
+    expense: '#ff6b6b',
+    income: '#5ce07a',
+    credit: '#5ab0ff',
     area: {
-      expense: 'rgba(248, 113, 113, 0.3)',
-      income: 'rgba(74, 222, 128, 0.3)',
+      expense: 'rgba(255, 107, 107, 0.2)',
+      income: 'rgba(92, 224, 122, 0.2)',
     },
   },
 };

@@ -52,3 +52,54 @@ html.dark {
   backdrop-filter: blur(12px);
   border: 1px solid rgba(30, 58, 95, 0.5);
 }
+
+/* Copilot Money-style card styling */
+.copilot-card {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.copilot-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+html.dark .copilot-card {
+  background: #1c1c1e;
+  border: 1px solid #3a3a3c;
+  box-shadow: none;
+}
+
+html.dark .copilot-card:hover {
+  border-color: #48484a;
+}
+
+/* Copilot-style tooltip */
+.copilot-tooltip {
+  background: #ffffff !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+  padding: 8px 12px !important;
+}
+
+html.dark .copilot-tooltip {
+  background: #2c2c2e !important;
+  border: 1px solid #3a3a3c !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Chart container styling */
+.copilot-chart-container {
+  padding: 20px;
+}
+
+.copilot-chart-container .recharts-cartesian-grid-horizontal line {
+  stroke-opacity: 0.6;
+}
+
+.copilot-chart-container .recharts-cartesian-grid-vertical line {
+  display: none;
+}

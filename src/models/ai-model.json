@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-02-01T09:29:32.408Z",
+  "timestamp": "2026-02-01T10:28:57.718Z",
   "learningModel": {
     "playstation network": "Healthcare",
     "icon dental": "Healthcare",
@@ -181,7 +181,13 @@
     "the home": "Housing & Utilities",
     "beyond vape": "Addictions",
     "total wine": "Food & Dining",
-    "xi an": "Food & Dining"
+    "xi an": "Food & Dining",
+    "citibank global": "Transfer",
+    "ebay o": "Shopping",
+    "jamesallen new": "Investments",
+    "jewelers mutual": "Insurance",
+    "best buy": "Shopping",
+    "walmart+ member": "Subscriptions"
   },
   "customCategories": [
     "Fees",
