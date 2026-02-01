@@ -1587,23 +1587,59 @@ const FinancialTracker = () => {
 
                   {/* Charts */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                    <div className="bg-white dark:bg-dark-card rounded-lg shadow-lg dark:shadow-none dark:border dark:border-dark-border p-6 transition-theme">
-                      <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4">Monthly Spending & Payments</h3>
+                    <div className="copilot-card p-6 transition-theme">
+                      <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Monthly Spending & Payments</h3>
                       <ResponsiveContainer width="100%" height={300}>
                         <LineChart data={getFilteredMonthlyData()}>
-                          <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
-                          <XAxis dataKey="date" stroke={chart.axis} />
-                          <YAxis tickFormatter={(value) => `${(value/1000).toFixed(0)}k`} stroke={chart.axis} />
-                          <Tooltip formatter={(value) => formatCurrency(value)} contentStyle={{ backgroundColor: chart.tooltip.bg, borderColor: chart.tooltip.border, color: chart.tooltip.text }} />
+                          <defs>
+                            <linearGradient id="incomeGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor={chart.income} stopOpacity={0.4}/>
+                              <stop offset="95%" stopColor={chart.income} stopOpacity={0.05}/>
+                            </linearGradient>
+                            <linearGradient id="expenseGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor={chart.expense} stopOpacity={0.4}/>
+                              <stop offset="95%" stopColor={chart.expense} stopOpacity={0.05}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="0" stroke={chart.grid} vertical={false} />
+                          <XAxis dataKey="date" stroke={chart.axis} axisLine={false} tickLine={false} fontSize={12} />
+                          <YAxis tickFormatter={(value) => value >= 1000 ? `$${(value/1000).toFixed(value % 1000 === 0 ? 0 : 1)}k` : `$${value}`} stroke={chart.axis} axisLine={false} tickLine={false} fontSize={12} />
+                          <Tooltip
+                            formatter={(value) => formatCurrency(value)}
+                            contentStyle={{
+                              backgroundColor: chart.tooltip.bg,
+                              borderColor: chart.tooltip.border,
+                              color: chart.tooltip.text,
+                              borderRadius: '8px',
+                              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                              padding: '8px 12px'
+                            }}
+                          />
                           <Legend />
-                          <Line type="monotone" dataKey="payments" stroke={chart.income} strokeWidth={3} name="Payments" />
-                          <Line type="monotone" dataKey="expenses" stroke={chart.expense} strokeWidth={3} name="Spending" />
+                          <Line
+                            type="monotone"
+                            dataKey="payments"
+                            stroke={chart.income}
+                            strokeWidth={2.5}
+                            name="Payments"
+                            dot={false}
+                            activeDot={{ r: 6, stroke: '#fff', strokeWidth: 2, fill: chart.income }}
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="expenses"
+                            stroke={chart.expense}
+                            strokeWidth={2.5}
+                            name="Spending"
+                            dot={false}
+                            activeDot={{ r: 6, stroke: '#fff', strokeWidth: 2, fill: chart.expense }}
+                          />
                         </LineChart>
                       </ResponsiveContainer>
                     </div>
 
-                    <div className="bg-white dark:bg-dark-card rounded-lg shadow-lg dark:shadow-none dark:border dark:border-dark-border p-6 transition-theme">
-                      <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4">Spending by Category</h3>
+                    <div className="copilot-card p-6 transition-theme">
+                      <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Spending by Category</h3>
                       <ResponsiveContainer width="100%" height={300}>
                         <PieChart>
                           <Pie
@@ -1612,15 +1648,27 @@ const FinancialTracker = () => {
                             cy="50%"
                             labelLine={false}
                             label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                            outerRadius={80}
-                            fill="#8884d8"
+                            outerRadius={100}
+                            innerRadius={55}
+                            paddingAngle={2}
+                            stroke="none"
                             dataKey="value"
                           >
                             {getFilteredCategoryData().slice(0, 8).map((entry, index) => (
                               <Cell key={`cell-${index}`} fill={getColor(index)} />
                             ))}
                           </Pie>
-                          <Tooltip formatter={(value) => formatCurrency(value)} contentStyle={{ backgroundColor: chart.tooltip.bg, borderColor: chart.tooltip.border, color: chart.tooltip.text }} />
+                          <Tooltip
+                            formatter={(value) => formatCurrency(value)}
+                            contentStyle={{
+                              backgroundColor: chart.tooltip.bg,
+                              borderColor: chart.tooltip.border,
+                              color: chart.tooltip.text,
+                              borderRadius: '8px',
+                              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                              padding: '8px 12px'
+                            }}
+                          />
                         </PieChart>
                       </ResponsiveContainer>
                     </div>
@@ -1628,14 +1676,32 @@ const FinancialTracker = () => {
 
                   {/* Category Spending Over Time - Full Width */}
                   {getFilteredCategoryOverTimeData().length > 0 && (
-                    <div className="bg-white dark:bg-dark-card rounded-lg shadow-lg dark:shadow-none dark:border dark:border-dark-border p-6 mb-8 transition-theme">
-                      <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4">Category Spending Trends Over Time</h3>
+                    <div className="copilot-card p-6 mb-8 transition-theme">
+                      <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Category Spending Trends Over Time</h3>
                       <ResponsiveContainer width="100%" height={400}>
                         <AreaChart data={getFilteredCategoryOverTimeData()}>
-                          <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
-                          <XAxis dataKey="date" stroke={chart.axis} />
-                          <YAxis tickFormatter={(value) => `$${(value/1000).toFixed(0)}k`} stroke={chart.axis} />
-                          <Tooltip formatter={(value) => formatCurrency(value)} contentStyle={{ backgroundColor: chart.tooltip.bg, borderColor: chart.tooltip.border, color: chart.tooltip.text }} />
+                          <defs>
+                            {getFilteredCategoryData().slice(0, 8).map((category, index) => (
+                              <linearGradient key={`gradient-${category.name}`} id={`areaGradient-${index}`} x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor={getColor(index)} stopOpacity={0.4}/>
+                                <stop offset="95%" stopColor={getColor(index)} stopOpacity={0.05}/>
+                              </linearGradient>
+                            ))}
+                          </defs>
+                          <CartesianGrid strokeDasharray="0" stroke={chart.grid} vertical={false} />
+                          <XAxis dataKey="date" stroke={chart.axis} axisLine={false} tickLine={false} fontSize={12} />
+                          <YAxis tickFormatter={(value) => value >= 1000 ? `$${(value/1000).toFixed(value % 1000 === 0 ? 0 : 1)}k` : `$${value}`} stroke={chart.axis} axisLine={false} tickLine={false} fontSize={12} />
+                          <Tooltip
+                            formatter={(value) => formatCurrency(value)}
+                            contentStyle={{
+                              backgroundColor: chart.tooltip.bg,
+                              borderColor: chart.tooltip.border,
+                              color: chart.tooltip.text,
+                              borderRadius: '8px',
+                              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                              padding: '8px 12px'
+                            }}
+                          />
                           <Legend />
                           {getFilteredCategoryData().slice(0, 8).map((category, index) => (
                             <Area
@@ -1644,8 +1710,9 @@ const FinancialTracker = () => {
                               dataKey={category.name}
                               stackId="1"
                               stroke={getColor(index)}
-                              fill={getColor(index)}
-                              fillOpacity={0.6}
+                              strokeWidth={2}
+                              fill={`url(#areaGradient-${index})`}
+                              fillOpacity={1}
                             />
                           ))}
                         </AreaChart>
@@ -1655,14 +1722,24 @@ const FinancialTracker = () => {
 
                   {/* Category Comparison - Line Chart */}
                   {getFilteredCategoryOverTimeData().length > 0 && (
-                    <div className="bg-white dark:bg-dark-card rounded-lg shadow-lg dark:shadow-none dark:border dark:border-dark-border p-6 mb-8 transition-theme">
-                      <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4">Category Comparison (Top 5)</h3>
+                    <div className="copilot-card p-6 mb-8 transition-theme">
+                      <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Category Comparison (Top 5)</h3>
                       <ResponsiveContainer width="100%" height={350}>
                         <LineChart data={getFilteredCategoryOverTimeData()}>
-                          <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
-                          <XAxis dataKey="date" stroke={chart.axis} />
-                          <YAxis tickFormatter={(value) => `$${(value/1000).toFixed(1)}k`} stroke={chart.axis} />
-                          <Tooltip formatter={(value) => formatCurrency(value)} contentStyle={{ backgroundColor: chart.tooltip.bg, borderColor: chart.tooltip.border, color: chart.tooltip.text }} />
+                          <CartesianGrid strokeDasharray="0" stroke={chart.grid} vertical={false} />
+                          <XAxis dataKey="date" stroke={chart.axis} axisLine={false} tickLine={false} fontSize={12} />
+                          <YAxis tickFormatter={(value) => value >= 1000 ? `$${(value/1000).toFixed(value % 1000 === 0 ? 0 : 1)}k` : `$${value}`} stroke={chart.axis} axisLine={false} tickLine={false} fontSize={12} />
+                          <Tooltip
+                            formatter={(value) => formatCurrency(value)}
+                            contentStyle={{
+                              backgroundColor: chart.tooltip.bg,
+                              borderColor: chart.tooltip.border,
+                              color: chart.tooltip.text,
+                              borderRadius: '8px',
+                              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                              padding: '8px 12px'
+                            }}
+                          />
                           <Legend />
                           {getFilteredCategoryData().slice(0, 5).map((category, index) => (
                             <Line
@@ -1670,9 +1747,9 @@ const FinancialTracker = () => {
                               type="monotone"
                               dataKey={category.name}
                               stroke={getColor(index)}
-                              strokeWidth={2}
-                              dot={{ r: 4 }}
-                              activeDot={{ r: 6 }}
+                              strokeWidth={2.5}
+                              dot={false}
+                              activeDot={{ r: 6, stroke: '#fff', strokeWidth: 2, fill: getColor(index) }}
                             />
                           ))}
                         </LineChart>
@@ -2178,7 +2255,7 @@ const FinancialTracker = () => {
                         <BarChart data={getMultiCategoryData()}>
                           <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
                           <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} stroke={chart.axis} />
-                          <YAxis tickFormatter={(value) => `$${(value/1000).toFixed(0)}k`} stroke={chart.axis} />
+                          <YAxis tickFormatter={(value) => value >= 1000 ? `$${(value/1000).toFixed(value % 1000 === 0 ? 0 : 1)}k` : `$${value}`} stroke={chart.axis} />
                           <Tooltip formatter={(value) => formatCurrency(value)} contentStyle={{ backgroundColor: chart.tooltip.bg, borderColor: chart.tooltip.border, color: chart.tooltip.text }} />
                           <Bar dataKey="value" fill={getColor(0)} />
                         </BarChart>
@@ -2191,7 +2268,7 @@ const FinancialTracker = () => {
                         <ScatterChart data={getMultiCategoryData()}>
                           <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
                           <XAxis dataKey="count" name="transactions" stroke={chart.axis} />
-                          <YAxis dataKey="value" name="amount" tickFormatter={(value) => `$${(value/1000).toFixed(0)}k`} stroke={chart.axis} />
+                          <YAxis dataKey="value" name="amount" tickFormatter={(value) => value >= 1000 ? `$${(value/1000).toFixed(value % 1000 === 0 ? 0 : 1)}k` : `$${value}`} stroke={chart.axis} />
                           <Tooltip
                             formatter={(value, name) => [
                               name === 'value' ? formatCurrency(value) : value,
