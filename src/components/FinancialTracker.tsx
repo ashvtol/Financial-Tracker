@@ -11,6 +11,8 @@ import { formatCurrency } from '../utils/formatters';
 import { getTimeRangeFilter } from '../utils/timeRanges';
 import { extractMerchant, extractUserFromFile, findMatchingMerchant } from '../utils/transactionUtils';
 import { parsePDFStatement, isPDFFile } from '../utils/pdfParser';
+import { CategoryTag } from './CategoryTag';
+import { MonthlySummaryCard } from './MonthlySummaryCard';
 
 const FinancialTracker = () => {
   const { isDark } = useTheme();
@@ -1855,38 +1857,8 @@ const FinancialTracker = () => {
                   )}
 
                   {/* Monthly Category Summary */}
-                  {showMonthlySummary && getMonthlyCategoryTotals().length > 0 && (
-                    <div className="bg-white dark:bg-dark-card rounded-lg shadow dark:shadow-none dark:border dark:border-dark-border mb-8 overflow-hidden transition-theme">
-                      <div className="bg-gray-50 dark:bg-dark-surface px-6 py-4 border-b dark:border-dark-border">
-                        <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Monthly Spending by Category</h3>
-                      </div>
-                      <div className="overflow-x-auto">
-                        <div className="px-6 py-4">
-                          <div className="grid gap-6">
-                            {getMonthlyCategoryTotals().map((monthData) => (
-                              <div key={monthData.month} className="border dark:border-dark-border rounded-lg p-4">
-                                <div className="flex items-center justify-between mb-3">
-                                  <h4 className="font-semibold text-gray-800 dark:text-white">{monthData.month}</h4>
-                                  <span className="text-lg font-bold text-blue-600 dark:text-accent-blue">
-                                    {formatCurrency(monthData.monthTotal)}
-                                  </span>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                  {monthData.categories.map((cat) => (
-                                    <div key={cat.category} className="flex items-center justify-between bg-gray-50 dark:bg-dark-surface rounded px-3 py-2">
-                                      <span className="text-sm text-gray-700 dark:text-slate-300 truncate mr-2">{cat.category}</span>
-                                      <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                                        {formatCurrency(cat.total)}
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                  {showMonthlySummary && (
+                    <MonthlySummaryCard data={getMonthlyCategoryTotals()} />
                   )}
 
                   <div className="bg-white dark:bg-dark-card rounded-lg overflow-hidden shadow dark:shadow-none dark:border dark:border-dark-border transition-theme">
@@ -1951,20 +1923,15 @@ const FinancialTracker = () => {
                                     </select>
                                   )
                                 ) : (
-                                  <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                    transaction.category === 'Credits/Refunds' ? 'bg-green-100 text-green-800' :
-                                    transaction.category === 'Other' ? 'bg-gray-100 text-gray-800' :
-                                    findMatchingMerchant(extractMerchant(transaction.description.toLowerCase()), learningModel) ? 'bg-green-100 text-green-800' :
-                                    'bg-blue-100 text-blue-800'
-                                  }`}>
-                                    {transaction.category}
+                                  <div className="flex items-center gap-1">
+                                    <CategoryTag category={transaction.category} />
                                     {transaction.isImmutableCategory && (
-                                      <span className="ml-1 text-xs">locked</span>
+                                      <span className="text-xs text-gray-500 dark:text-slate-400">locked</span>
                                     )}
                                     {!transaction.isImmutableCategory && findMatchingMerchant(extractMerchant(transaction.description.toLowerCase()), learningModel) && (
-                                      <Brain className="inline h-3 w-3 ml-1" title="AI Learned" />
+                                      <Brain className="h-3 w-3 text-green-600 dark:text-green-400" title="AI Learned" />
                                     )}
-                                  </span>
+                                  </div>
                                 )}
                               </td>
                               <td className="px-6 py-4 text-sm font-medium whitespace-nowrap">
@@ -2308,21 +2275,15 @@ const FinancialTracker = () => {
                                                 </select>
                                               )
                                             ) : (
-                                              <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                                transaction.category === 'Credits/Refunds' ? 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-400' :
-                                                transaction.category === 'Payment' ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-400' :
-                                                transaction.category === 'Other' ? 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300' :
-                                                findMatchingMerchant(extractMerchant(transaction.description.toLowerCase()), learningModel) ? 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-400' :
-                                                'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-400'
-                                              }`}>
-                                                {transaction.category}
+                                              <div className="flex items-center gap-1">
+                                                <CategoryTag category={transaction.category} />
                                                 {transaction.isImmutableCategory && (
-                                                  <span className="ml-1 text-xs">locked</span>
+                                                  <span className="text-xs text-gray-500 dark:text-slate-400">locked</span>
                                                 )}
                                                 {!transaction.isImmutableCategory && findMatchingMerchant(extractMerchant(transaction.description.toLowerCase()), learningModel) && (
-                                                  <Brain className="inline h-3 w-3 ml-1" title="AI Learned" />
+                                                  <Brain className="h-3 w-3 text-green-600 dark:text-green-400" title="AI Learned" />
                                                 )}
-                                              </span>
+                                              </div>
                                             )}
                                           </td>
                                           <td className={`px-3 py-2 text-right font-medium whitespace-nowrap ${
