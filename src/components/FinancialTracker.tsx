@@ -14,6 +14,8 @@ import { extractMerchant, extractUserFromFile, findMatchingMerchant } from '../u
 import { parsePDFStatement, isPDFFile } from '../utils/pdfParser';
 import { CategoryTag } from './CategoryTag';
 import { MonthlySummaryCard } from './MonthlySummaryCard';
+import { AnimatedNumber } from '../hooks/useAnimatedNumber';
+import { ANIMATION_DURATION, ANIMATION_DURATION_CLASS } from '../constants/animation';
 
 const FinancialTracker = () => {
   const { isDark } = useTheme();
@@ -1314,7 +1316,9 @@ const FinancialTracker = () => {
                           <div className="flex items-center justify-between">
                             <div>
                               <p className="text-sm text-red-600 dark:text-red-400">Total Charges</p>
-                              <p className="text-2xl font-bold text-red-700 dark:text-red-300">{formatCurrency(filteredExpenses)}</p>
+                              <p className="text-2xl font-bold text-red-700 dark:text-red-300">
+                                <AnimatedNumber value={filteredExpenses} decimals={2} formatter={formatCurrency} />
+                              </p>
                             </div>
                             <TrendingUp className="h-8 w-8 text-red-600 dark:text-red-400" />
                           </div>
@@ -1324,7 +1328,9 @@ const FinancialTracker = () => {
                           <div className="flex items-center justify-between">
                             <div>
                               <p className="text-sm text-green-600 dark:text-green-400">Total Credits</p>
-                              <p className="text-2xl font-bold text-green-700 dark:text-green-300">{formatCurrency(filteredCredits)}</p>
+                              <p className="text-2xl font-bold text-green-700 dark:text-green-300">
+                                <AnimatedNumber value={filteredCredits} decimals={2} formatter={formatCurrency} />
+                              </p>
                             </div>
                             <TrendingDown className="h-8 w-8 text-green-600 dark:text-green-400" />
                           </div>
@@ -1334,7 +1340,9 @@ const FinancialTracker = () => {
                           <div className="flex items-center justify-between">
                             <div>
                               <p className="text-sm text-emerald-600 dark:text-emerald-400">Total Income</p>
-                              <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{formatCurrency(filteredIncome)}</p>
+                              <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">
+                                <AnimatedNumber value={filteredIncome} decimals={2} formatter={formatCurrency} />
+                              </p>
                             </div>
                             <DollarSign className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
                           </div>
@@ -1345,7 +1353,7 @@ const FinancialTracker = () => {
                             <div>
                               <p className="text-sm text-purple-600 dark:text-purple-400">Net Spending</p>
                               <p className={`text-2xl font-bold ${filteredNetSpending >= 0 ? 'text-red-700 dark:text-red-300' : 'text-green-700 dark:text-green-300'}`}>
-                                {formatCurrency(filteredNetSpending)}
+                                <AnimatedNumber value={filteredNetSpending} decimals={2} formatter={formatCurrency} />
                               </p>
                             </div>
                             <TrendingDown className="h-8 w-8 text-purple-600 dark:text-purple-400" />
@@ -1356,7 +1364,9 @@ const FinancialTracker = () => {
                           <div className="flex items-center justify-between">
                             <div>
                               <p className="text-sm text-orange-600 dark:text-orange-400">Avg Monthly Charges</p>
-                              <p className="text-2xl font-bold text-orange-700 dark:text-orange-300">{formatCurrency(filteredAvgMonthly)}</p>
+                              <p className="text-2xl font-bold text-orange-700 dark:text-orange-300">
+                                <AnimatedNumber value={filteredAvgMonthly} decimals={2} formatter={formatCurrency} />
+                              </p>
                             </div>
                             <Calendar className="h-8 w-8 text-orange-600 dark:text-orange-400" />
                           </div>
@@ -1500,7 +1510,7 @@ const FinancialTracker = () => {
                     <div className="copilot-card p-6 transition-theme">
                       <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Spending by Category</h3>
                       <ResponsiveContainer width="100%" height={300}>
-                        <PieChart>
+                        <PieChart key={`pie-${timeRange}-${selectedUser}`}>
                           <Pie
                             data={getFilteredCategoryData().slice(0, 8)}
                             cx="50%"
@@ -1512,6 +1522,9 @@ const FinancialTracker = () => {
                             paddingAngle={2}
                             stroke="none"
                             dataKey="value"
+                            isAnimationActive={true}
+                            animationDuration={ANIMATION_DURATION}
+                            animationEasing="ease-out"
                           >
                             {getFilteredCategoryData().slice(0, 8).map((entry, index) => (
                               <Cell key={`cell-${index}`} fill={getColor(index)} />
@@ -1736,7 +1749,7 @@ const FinancialTracker = () => {
                           </h3>
                           <div className="text-right">
                             <div className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">
-                              {formatCurrency(getDateRangeSummary()?.totalExpenditure || 0)}
+                              <AnimatedNumber value={getDateRangeSummary()?.totalExpenditure || 0} decimals={2} formatter={formatCurrency} />
                             </div>
                             <div className="text-xs text-indigo-500 dark:text-indigo-400">Total Expenditure</div>
                           </div>
@@ -1746,27 +1759,39 @@ const FinancialTracker = () => {
                         {/* Summary Stats */}
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
                           <div className="bg-gray-50 dark:bg-dark-surface rounded-lg p-3 text-center">
-                            <div className="text-lg font-semibold text-gray-800 dark:text-white">{getDateRangeSummary()?.expenseCount || 0}</div>
+                            <div className="text-lg font-semibold text-gray-800 dark:text-white">
+                              <AnimatedNumber value={getDateRangeSummary()?.expenseCount || 0} decimals={0} />
+                            </div>
                             <div className="text-xs text-gray-500 dark:text-slate-400">Expenses</div>
                           </div>
                           <div className="bg-green-50 dark:bg-green-900/30 rounded-lg p-3 text-center">
-                            <div className="text-lg font-semibold text-green-700 dark:text-green-400">{formatCurrency(getDateRangeSummary()?.totalCredits || 0)}</div>
+                            <div className="text-lg font-semibold text-green-700 dark:text-green-400">
+                              <AnimatedNumber value={getDateRangeSummary()?.totalCredits || 0} decimals={2} formatter={formatCurrency} />
+                            </div>
                             <div className="text-xs text-green-600 dark:text-green-500">Credits/Refunds</div>
                           </div>
                           <div className="bg-emerald-50 dark:bg-emerald-900/30 rounded-lg p-3 text-center">
-                            <div className="text-lg font-semibold text-emerald-700 dark:text-emerald-400">{formatCurrency(getDateRangeSummary()?.totalIncome || 0)}</div>
+                            <div className="text-lg font-semibold text-emerald-700 dark:text-emerald-400">
+                              <AnimatedNumber value={getDateRangeSummary()?.totalIncome || 0} decimals={2} formatter={formatCurrency} />
+                            </div>
                             <div className="text-xs text-emerald-600 dark:text-emerald-500">Income</div>
                           </div>
                           <div className="bg-indigo-50 dark:bg-indigo-900/30 rounded-lg p-3 text-center">
-                            <div className="text-lg font-semibold text-indigo-700 dark:text-indigo-400">{formatCurrency(getDateRangeSummary()?.totalInvestments || 0)}</div>
+                            <div className="text-lg font-semibold text-indigo-700 dark:text-indigo-400">
+                              <AnimatedNumber value={getDateRangeSummary()?.totalInvestments || 0} decimals={2} formatter={formatCurrency} />
+                            </div>
                             <div className="text-xs text-indigo-600 dark:text-indigo-500">Investments</div>
                           </div>
                           <div className="bg-blue-50 dark:bg-blue-900/30 rounded-lg p-3 text-center">
-                            <div className="text-lg font-semibold text-blue-700 dark:text-blue-400">{formatCurrency(getDateRangeSummary()?.netSpending || 0)}</div>
+                            <div className="text-lg font-semibold text-blue-700 dark:text-blue-400">
+                              <AnimatedNumber value={getDateRangeSummary()?.netSpending || 0} decimals={2} formatter={formatCurrency} />
+                            </div>
                             <div className="text-xs text-blue-600 dark:text-blue-500">Net Spending</div>
                           </div>
                           <div className="bg-purple-50 dark:bg-purple-900/30 rounded-lg p-3 text-center">
-                            <div className="text-lg font-semibold text-purple-700 dark:text-purple-400">{getDateRangeSummary()?.categories.length || 0}</div>
+                            <div className="text-lg font-semibold text-purple-700 dark:text-purple-400">
+                              <AnimatedNumber value={getDateRangeSummary()?.categories.length || 0} decimals={0} />
+                            </div>
                             <div className="text-xs text-purple-600 dark:text-purple-500">Categories</div>
                           </div>
                         </div>
@@ -1800,7 +1825,7 @@ const FinancialTracker = () => {
                                   {/* Progress bar */}
                                   <div className="flex-1 h-2 bg-gray-200 dark:bg-dark-border rounded-full overflow-hidden">
                                     <div
-                                      className="h-full rounded-full transition-all duration-300"
+                                      className="h-full rounded-full transition-all duration-500 ease-out"
                                       style={{
                                         width: `${barWidth}%`,
                                         backgroundColor: color
@@ -1810,12 +1835,12 @@ const FinancialTracker = () => {
 
                                   {/* Amount */}
                                   <span className="w-24 text-right text-sm font-semibold text-gray-900 dark:text-white">
-                                    {formatCurrency(cat.total)}
+                                    <AnimatedNumber value={cat.total} decimals={2} formatter={formatCurrency} />
                                   </span>
 
                                   {/* Percentage */}
                                   <span className="w-12 text-right text-xs text-gray-500 dark:text-slate-400">
-                                    {percent}%
+                                    <AnimatedNumber value={percent} decimals={0} />%
                                   </span>
                                 </div>
                               );

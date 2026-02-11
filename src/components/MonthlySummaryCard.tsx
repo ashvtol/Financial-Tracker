@@ -3,6 +3,8 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { getCategoryColor, getCategoryEmoji } from '../constants/categoryColors';
 import { formatCurrency } from '../utils/formatters';
+import { AnimatedNumber } from '../hooks/useAnimatedNumber';
+import { ANIMATION_DURATION_CLASS } from '../constants/animation';
 
 interface CategoryTotal {
   category: string;
@@ -68,7 +70,7 @@ export function MonthlySummaryCard({ data }: MonthlySummaryCardProps) {
                   <span className="font-semibold text-gray-800 dark:text-white">{monthData.month}</span>
                 </div>
                 <span className="text-lg font-bold text-blue-600 dark:text-accent-blue">
-                  {formatCurrency(monthData.monthTotal)}
+                  <AnimatedNumber value={monthData.monthTotal} decimals={2} formatter={formatCurrency} />
                 </span>
               </button>
 
@@ -97,7 +99,7 @@ export function MonthlySummaryCard({ data }: MonthlySummaryCardProps) {
                         {/* Progress bar */}
                         <div className="flex-1 h-2 bg-gray-200 dark:bg-dark-border rounded-full overflow-hidden">
                           <div
-                            className="h-full rounded-full transition-all duration-300"
+                            className="h-full rounded-full transition-all duration-500 ease-out"
                             style={{
                               width: `${barWidth}%`,
                               backgroundColor: color
@@ -107,12 +109,12 @@ export function MonthlySummaryCard({ data }: MonthlySummaryCardProps) {
 
                         {/* Amount */}
                         <span className="w-24 text-right text-sm font-semibold text-gray-900 dark:text-white">
-                          {formatCurrency(cat.total)}
+                          <AnimatedNumber value={cat.total} decimals={2} formatter={formatCurrency} />
                         </span>
 
                         {/* Percentage */}
                         <span className="w-12 text-right text-xs text-gray-500 dark:text-slate-400">
-                          {percent}%
+                          <AnimatedNumber value={percent} decimals={0} />%
                         </span>
                       </div>
                     );
