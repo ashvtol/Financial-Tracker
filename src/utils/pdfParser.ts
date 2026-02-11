@@ -1,9 +1,31 @@
 import * as pdfjsLib from 'pdfjs-dist';
+import PdfWorker from 'pdfjs-dist/build/pdf.worker.mjs?url';
 
-// Use local worker file to avoid CORS issues
-pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.mjs';
+// Use the worker URL imported via Vite's ?url suffix for proper handling
+pdfjsLib.GlobalWorkerOptions.workerSrc = PdfWorker;
 
 console.log('PDF.js version:', pdfjsLib.version);
+console.log('PDF.js worker:', PdfWorker);
+
+// Check if PDF worker is available
+let pdfWorkerAvailable: boolean | null = null;
+
+const checkPdfWorker = async (): Promise<boolean> => {
+  if (pdfWorkerAvailable !== null) return pdfWorkerAvailable;
+
+  try {
+    const response = await fetch(PdfWorker, { method: 'HEAD' });
+    pdfWorkerAvailable = response.ok;
+    if (!pdfWorkerAvailable) {
+      console.error('PDF Worker Error: Worker file not found (status:', response.status, ')');
+      console.error('Run "npm install" to reinstall pdfjs-dist.');
+    }
+  } catch (error) {
+    pdfWorkerAvailable = false;
+    console.error('PDF Worker Error: Could not access worker file');
+  }
+  return pdfWorkerAvailable;
+};
 
 interface ParsedTransaction {
   date: string;
@@ -557,6 +579,15 @@ const detectAndParseStatement = (text: string, filename?: string): PDFParseResul
 
 // Main function to parse PDF file
 export const parsePDFStatement = async (file: File): Promise<PDFParseResult> => {
+  // Check if PDF worker is available before attempting to parse
+  const workerAvailable = await checkPdfWorker();
+  if (!workerAvailable) {
+    throw new Error(
+      'PDF parsing is unavailable: The PDF worker file is missing. ' +
+      'Please run "npm install" to restore it, then restart the app.'
+    );
+  }
+
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
 

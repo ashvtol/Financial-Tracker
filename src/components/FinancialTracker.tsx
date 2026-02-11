@@ -634,6 +634,8 @@ const FinancialTracker = () => {
         }
       } catch (error) {
         console.error(`Error processing ${file.name}:`, error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        showNotification(`Error processing ${file.name}: ${errorMessage}`, 'error');
       }
     }
 

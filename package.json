@@ -12,7 +12,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "server": "node server.js",
-    "start": "npm run server & npm run dev"
+    "start": "npm run server & npm run dev",
+    "postinstall": "node scripts/copy-pdf-worker.js"
   },
   "dependencies": {
     "body-parser": "^2.2.0",
