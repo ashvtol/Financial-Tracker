@@ -1,6 +1,6 @@
 // Payment platforms where we need to keep the transaction ID to make each unique
 const PAYMENT_PLATFORM_PATTERNS = [
-  'venmo', 'zelle', 'paypal', 'cashapp', 'cash app', 'apple cash'
+  'venmo', 'zelle', 'paypal', 'cashapp', 'cash app', 'apple cash', 'wise'
 ];
 
 export const extractMerchant = (description: string): string => {
@@ -117,11 +117,11 @@ const calculateSimilarity = (str1: string, str2: string): number => {
 // Payment platforms where each transaction is different (can't fuzzy match)
 const PAYMENT_PLATFORMS = [
   'venmo', 'zelle', 'paypal', 'cashapp', 'cash app', 'apple cash',
-  'wire transfer', 'wire from', 'capital one transfer'
+  'wire transfer', 'wire from', 'capital one transfer', 'wise'
 ];
 
 // Check if merchant is a generic payment platform that shouldn't be fuzzy matched
-const isPaymentPlatform = (merchant: string): boolean => {
+export const isPaymentPlatform = (merchant: string): boolean => {
   const lower = merchant.toLowerCase();
   return PAYMENT_PLATFORMS.some(platform => lower.includes(platform));
 };
@@ -132,16 +132,16 @@ export const findMatchingMerchant = (
   learningModel: Map<string, string>,
   threshold: number = 0.8  // Increased threshold for more precise matching
 ): { key: string; category: string } | null => {
-  // First try exact match (always allowed, even for payment platforms)
-  if (learningModel.has(merchant)) {
-    return { key: merchant, category: learningModel.get(merchant)! };
+  // Don't match payment platforms at all - each transaction is different
+  // (e.g., different WISE transactions can be Transfers or Investments)
+  if (isPaymentPlatform(merchant)) {
+    console.log(`Skipping learning model for payment platform: "${merchant}"`);
+    return null;
   }
 
-  // Don't fuzzy match payment platforms - each transaction is different
-  // (e.g., "venmo 1234" and "venmo 5678" are different merchants/purposes)
-  if (isPaymentPlatform(merchant)) {
-    console.log(`Skipping fuzzy match for payment platform: "${merchant}"`);
-    return null;
+  // Try exact match
+  if (learningModel.has(merchant)) {
+    return { key: merchant, category: learningModel.get(merchant)! };
   }
 
   // Fuzzy match - find best match above threshold

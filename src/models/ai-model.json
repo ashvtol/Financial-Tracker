@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-02-01T10:28:57.718Z",
+  "timestamp": "2026-02-11T18:26:40.230Z",
   "learningModel": {
     "playstation network": "Healthcare",
     "icon dental": "Healthcare",
@@ -135,7 +135,6 @@
     "microsoft edipayment": "Income - Salary",
     "capital one": "Investments",
     "wa state": "Car Maintenance",
-    "venmo": "Phone & Internet",
     "venmo 1047073891426": "Phone & Internet",
     "venmo 1047403373541": "Food & Dining",
     "venmo 1046981166602": "Food & Dining",
@@ -158,7 +157,6 @@
     "cinemark boxcon": "Entertainment",
     "rei.com wa": "Gifts & Donations",
     "venmo 8558124430": "Phone & Internet",
-    "wise inc": "Investments",
     "churchill ca": "Food & Dining",
     "aplpay brown": "Car Maintenance",
     "brown bear": "Car Maintenance",
@@ -187,7 +185,13 @@
     "jamesallen new": "Investments",
     "jewelers mutual": "Insurance",
     "best buy": "Shopping",
-    "walmart+ member": "Subscriptions"
+    "walmart+ member": "Subscriptions",
+    "id:ctidoqkdbvai id:jpm": "Housing & Utilities - Rent",
+    "id:ctipvtdo361k id:cti": "Transfer",
+    "fgt above": "Entertainment - Outdoors",
+    "sp vermont": "Gifts & Donations",
+    "joshua repple": "Entertainment - Outdoors",
+    "splitwise providence ri": "Subscriptions"
   },
   "customCategories": [
     "Fees",

@@ -10,7 +10,7 @@ import { ThemeToggle } from './ThemeToggle';
 import { API_URL, TIME_RANGES } from '../constants/config';
 import { formatCurrency } from '../utils/formatters';
 import { getTimeRangeFilter } from '../utils/timeRanges';
-import { extractMerchant, extractUserFromFile, findMatchingMerchant } from '../utils/transactionUtils';
+import { extractMerchant, extractUserFromFile, findMatchingMerchant, isPaymentPlatform } from '../utils/transactionUtils';
 import { parsePDFStatement, isPDFFile } from '../utils/pdfParser';
 import { CategoryTag } from './CategoryTag';
 import { MonthlySummaryCard } from './MonthlySummaryCard';
@@ -497,6 +497,12 @@ const FinancialTracker = () => {
 
   const updateLearningModel = useCallback((description, category) => {
     const merchant = extractMerchant(description);
+    // Don't save payment platform merchants to the learning model
+    // Each transaction (e.g., Wise, Venmo) can be a different category
+    if (isPaymentPlatform(merchant)) {
+      console.log(`Skipping learning model save for payment platform: "${merchant}"`);
+      return;
+    }
     setLearningModel(prev => new Map(prev).set(merchant, category));
   }, []);
 
@@ -811,22 +817,31 @@ const FinancialTracker = () => {
     const merchant = extractMerchant(targetTransaction.description.toLowerCase());
     console.log('Extracted merchant:', merchant);
 
-    // Update the learning model
+    // Update the learning model (skips payment platforms internally)
     updateLearningModel(targetTransaction.description, newCategory);
 
-    // Update ALL transactions from the SAME merchant (exact match only)
-    // This prevents accidentally updating similar but different merchants (e.g., Amazon vs Amazon Whole Foods)
+    // For payment platforms (Wise, Venmo, etc.), only update the single transaction
+    // because each transaction can be a different category (e.g., Wise: Transfer vs Investment)
+    const isPaymentPlatformMerchant = isPaymentPlatform(merchant);
+
     const updatedTransactions = allTransactions.map(t => {
       if (t.isImmutableCategory) {
         return t; // Don't change immutable categories
       }
 
-      const currentMerchant = extractMerchant(t.description.toLowerCase());
-
-      // Only update exact merchant matches
-      if (currentMerchant === merchant) {
-        console.log(`Updating transaction ${t.id} from ${t.category} to ${newCategory}`);
-        return { ...t, category: newCategory };
+      if (isPaymentPlatformMerchant) {
+        // Only update the exact transaction that was edited
+        if (t.id === transactionId) {
+          console.log(`Updating payment platform transaction ${t.id} from ${t.category} to ${newCategory}`);
+          return { ...t, category: newCategory };
+        }
+      } else {
+        // For regular merchants, update all transactions with the same merchant
+        const currentMerchant = extractMerchant(t.description.toLowerCase());
+        if (currentMerchant === merchant) {
+          console.log(`Updating transaction ${t.id} from ${t.category} to ${newCategory}`);
+          return { ...t, category: newCategory };
+        }
       }
 
       return t;
@@ -841,15 +856,19 @@ const FinancialTracker = () => {
     // Force a re-render to update the category lists
     setRefreshKey(prev => prev + 1);
 
-    // Show feedback to user - count exact matches only
-    const updatedCount = updatedTransactions.filter(t => {
-      const m = extractMerchant(t.description.toLowerCase());
-      return m === merchant && !t.isImmutableCategory;
-    }).length;
+    // Show feedback to user
+    const updatedCount = isPaymentPlatformMerchant
+      ? 1
+      : updatedTransactions.filter(t => {
+          const m = extractMerchant(t.description.toLowerCase());
+          return m === merchant && !t.isImmutableCategory;
+        }).length;
 
     // Show notification
     setNotification({
-      message: `Updated ${updatedCount} transaction(s) to "${newCategory}". AI model saved!`,
+      message: isPaymentPlatformMerchant
+        ? `Updated transaction to "${newCategory}".`
+        : `Updated ${updatedCount} transaction(s) to "${newCategory}". AI model saved!`,
       type: 'success'
     });
 
