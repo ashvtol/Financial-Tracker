@@ -1916,7 +1916,7 @@ const FinancialTracker = () => {
 
                         {/* Category Breakdown */}
                         <h4 className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">Spending by Category</h4>
-                        <div className="space-y-2">
+                        <div className="space-y-0.5">
                           {(() => {
                             const summary = getDateRangeSummary();
                             const maxAmount = summary ? Math.max(...summary.categories.map(c => c.total)) : 0;
@@ -1931,7 +1931,7 @@ const FinancialTracker = () => {
                                 : 0;
 
                               return (
-                                <div key={cat.category} className="flex items-center gap-3 py-1.5">
+                                <div key={cat.category} className="flex items-center gap-3 py-0.5">
                                   {/* Emoji */}
                                   <span className="flex-shrink-0 text-base">{emoji}</span>
 

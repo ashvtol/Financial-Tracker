@@ -74,7 +74,7 @@ export function MonthlySummaryCard({ data }: MonthlySummaryCardProps) {
 
               {/* Category Rows */}
               {isExpanded && (
-                <div className="px-4 py-3 space-y-2">
+                <div className="px-4 py-2 space-y-0.5">
                   {monthData.categories.map((cat) => {
                     const color = getCategoryColor(cat.category, isDark);
                     const percent = monthData.monthTotal > 0
@@ -85,7 +85,7 @@ export function MonthlySummaryCard({ data }: MonthlySummaryCardProps) {
                       : 0;
 
                     return (
-                      <div key={cat.category} className="flex items-center gap-3 py-1.5">
+                      <div key={cat.category} className="flex items-center gap-3 py-0.5">
                         {/* Emoji */}
                         <span className="flex-shrink-0 text-base">{getCategoryEmoji(cat.category)}</span>
 

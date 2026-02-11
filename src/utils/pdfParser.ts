@@ -165,10 +165,20 @@ const parseCitiStatement = (text: string, filename?: string): PDFParseResult => 
 
   // Helper to determine year based on month
   const getYearForMonth = (month: number): number => {
-    // If statement ends in Jan and transaction is in Dec, it's previous year
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1; // 1-indexed
+
+    // If statement ends in Jan/Feb and transaction is in Nov/Dec, it's previous year
     if (statementEndMonth <= 2 && month >= 11) {
       return statementYear - 1;
     }
+
+    // Sanity check: if the resulting date would be in the future, use previous year
+    if (statementYear === currentYear && month > currentMonth) {
+      return statementYear - 1;
+    }
+
     return statementYear;
   };
 
@@ -484,11 +494,21 @@ const parseCitiDebitStatementWithPositions = (
 
     // Parse the date with correct year handling for statements spanning two years
     const [month, day] = dateStr.split('/').map(Number);
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1; // 1-indexed
+
     // If statement spans years (e.g., Dec-Jan) and this is a late-year month, use previous year
     let transactionYear = statementEndYear;
     if (spansYears && month >= 10) { // Oct, Nov, Dec should be previous year
       transactionYear = statementEndYear - 1;
     }
+
+    // Sanity check: if the resulting date would be in the future, use previous year
+    if (transactionYear === currentYear && month > currentMonth) {
+      transactionYear = transactionYear - 1;
+    }
+
     const fullDate = `${transactionYear}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
     const descLower = description.toLowerCase();
