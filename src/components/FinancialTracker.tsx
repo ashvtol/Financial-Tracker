@@ -1274,149 +1274,6 @@ const FinancialTracker = () => {
           </div>
         )}
 
-        {/* Upload Section */}
-        <div className="bg-white dark:bg-dark-card rounded-lg shadow-lg dark:shadow-none dark:border dark:border-dark-border p-6 mb-8 transition-theme">
-          <div
-            className="border-2 border-dashed border-gray-300 dark:border-dark-border rounded-lg p-8 text-center hover:border-blue-400 dark:hover:border-accent-blue transition-colors"
-            onDrop={handleDrop}
-            onDragOver={(e) => e.preventDefault()}
-            onDragEnter={(e) => e.preventDefault()}
-          >
-            <Upload className="mx-auto h-12 w-12 text-gray-400 dark:text-slate-500 mb-4" />
-            <h3 className="text-lg font-medium text-gray-700 dark:text-white mb-2">Upload Statements Folder</h3>
-            <p className="text-gray-500 dark:text-slate-400 mb-4">Select your Statements folder to automatically organize by user. Supports CSV and PDF files. AI learns from your categorization choices.</p>
-            <input
-              type="file"
-              multiple
-              accept=".csv,.pdf"
-              onChange={handleFileInput}
-              className="hidden"
-              id="file-upload"
-              webkitdirectory=""
-              directory=""
-            />
-            <label
-              htmlFor="file-upload"
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md cursor-pointer hover:bg-blue-700 transition-colors"
-            >
-              <FileText className="mr-2 h-4 w-4" />
-              Choose Folder
-            </label>
-            {learningModel.size > 0 && (
-              <>
-                <button
-                  onClick={saveModelToFile}
-                  className="ml-4 inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  Export AI Model
-                </button>
-                <input
-                  type="file"
-                  id="model-upload"
-                  accept=".json"
-                  onChange={loadModelFromFile}
-                  className="hidden"
-                />
-                <label
-                  htmlFor="model-upload"
-                  className="ml-2 inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md cursor-pointer hover:bg-purple-700 transition-colors"
-                >
-                  <Upload className="mr-2 h-4 w-4" />
-                  Import AI Model
-                </label>
-              </>
-            )}
-            {allTransactions.length > 0 && (
-              <button
-                onClick={clearData}
-                className="ml-4 inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
-              >
-                <X className="mr-2 h-4 w-4" />
-                Clear All Data
-              </button>
-            )}
-          </div>
-          
-          {isProcessing && (
-            <div className="mt-4 text-center">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-accent-blue"></div>
-              <p className="mt-2 text-gray-600 dark:text-slate-400">Processing statements...</p>
-            </div>
-          )}
-
-          {/* User Selection */}
-          {availableUsers.length > 0 && (
-            <div className="mt-4 p-4 bg-blue-50 dark:bg-dark-surface rounded-lg">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <label className="text-sm font-medium text-blue-900 dark:text-blue-300">View Data For:</label>
-                  <select
-                    value={selectedUser}
-                    onChange={(e) => setSelectedUser(e.target.value)}
-                    className="px-4 py-2 border border-blue-300 dark:border-dark-border rounded-lg bg-white dark:bg-dark-card text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="combined">All Users Combined</option>
-                    {availableUsers.map(user => (
-                      <option key={user} value={user}>{user}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="text-sm text-blue-700 dark:text-blue-300">
-                  {selectedUser === 'combined'
-                    ? `Showing data for all ${availableUsers.length} user(s)`
-                    : `Showing data for ${selectedUser}`
-                  }
-                </div>
-              </div>
-            </div>
-          )}
-
-          {learningModel.size > 0 && (
-            <div className="mt-4 p-4 bg-green-50 dark:bg-dark-surface rounded-lg">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <Brain className="h-5 w-5 text-green-600 dark:text-accent-green mr-2" />
-                  <span className="text-green-800 dark:text-green-300 font-medium">
-                    AI Model has learned {learningModel.size} merchant patterns (saved automatically)
-                  </span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={exportLearningModel}
-                    className="flex items-center px-3 py-1 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 border border-blue-300 dark:border-blue-600 rounded hover:bg-blue-50 dark:hover:bg-dark-card"
-                    title="Export AI learning data to file"
-                  >
-                    <Download className="h-3 w-3 mr-1" />
-                    Export
-                  </button>
-                  <input
-                    type="file"
-                    accept=".json"
-                    onChange={importLearningModel}
-                    className="hidden"
-                    id="import-model"
-                  />
-                  <label
-                    htmlFor="import-model"
-                    className="flex items-center px-3 py-1 text-sm text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 border border-green-300 dark:border-green-600 rounded hover:bg-green-50 dark:hover:bg-dark-card cursor-pointer"
-                    title="Import AI learning data from file"
-                  >
-                    <FolderOpen className="h-3 w-3 mr-1" />
-                    Import
-                  </label>
-                  <button
-                    onClick={clearLearningModel}
-                    className="text-sm text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 underline"
-                  >
-                    Reset AI
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
         {/* Navigation Tabs */}
         {allTransactions.length > 0 && (
           <div className="bg-white dark:bg-dark-card rounded-lg shadow-lg dark:shadow-none dark:border dark:border-dark-border mb-8 transition-theme">
@@ -2538,6 +2395,149 @@ const FinancialTracker = () => {
             </div>
           </div>
         )}
+
+        {/* Upload Section */}
+        <div className="bg-white dark:bg-dark-card rounded-lg shadow-lg dark:shadow-none dark:border dark:border-dark-border p-6 mb-8 mt-8 transition-theme">
+          <div
+            className="border-2 border-dashed border-gray-300 dark:border-dark-border rounded-lg p-8 text-center hover:border-blue-400 dark:hover:border-accent-blue transition-colors"
+            onDrop={handleDrop}
+            onDragOver={(e) => e.preventDefault()}
+            onDragEnter={(e) => e.preventDefault()}
+          >
+            <Upload className="mx-auto h-12 w-12 text-gray-400 dark:text-slate-500 mb-4" />
+            <h3 className="text-lg font-medium text-gray-700 dark:text-white mb-2">Upload Statements Folder</h3>
+            <p className="text-gray-500 dark:text-slate-400 mb-4">Select your Statements folder to automatically organize by user. Supports CSV and PDF files. AI learns from your categorization choices.</p>
+            <input
+              type="file"
+              multiple
+              accept=".csv,.pdf"
+              onChange={handleFileInput}
+              className="hidden"
+              id="file-upload"
+              webkitdirectory=""
+              directory=""
+            />
+            <label
+              htmlFor="file-upload"
+              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md cursor-pointer hover:bg-blue-700 transition-colors"
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              Choose Folder
+            </label>
+            {learningModel.size > 0 && (
+              <>
+                <button
+                  onClick={saveModelToFile}
+                  className="ml-4 inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Export AI Model
+                </button>
+                <input
+                  type="file"
+                  id="model-upload"
+                  accept=".json"
+                  onChange={loadModelFromFile}
+                  className="hidden"
+                />
+                <label
+                  htmlFor="model-upload"
+                  className="ml-2 inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md cursor-pointer hover:bg-purple-700 transition-colors"
+                >
+                  <Upload className="mr-2 h-4 w-4" />
+                  Import AI Model
+                </label>
+              </>
+            )}
+            {allTransactions.length > 0 && (
+              <button
+                onClick={clearData}
+                className="ml-4 inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+              >
+                <X className="mr-2 h-4 w-4" />
+                Clear All Data
+              </button>
+            )}
+          </div>
+
+          {isProcessing && (
+            <div className="mt-4 text-center">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-accent-blue"></div>
+              <p className="mt-2 text-gray-600 dark:text-slate-400">Processing statements...</p>
+            </div>
+          )}
+
+          {/* User Selection */}
+          {availableUsers.length > 0 && (
+            <div className="mt-4 p-4 bg-blue-50 dark:bg-dark-surface rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <label className="text-sm font-medium text-blue-900 dark:text-blue-300">View Data For:</label>
+                  <select
+                    value={selectedUser}
+                    onChange={(e) => setSelectedUser(e.target.value)}
+                    className="px-4 py-2 border border-blue-300 dark:border-dark-border rounded-lg bg-white dark:bg-dark-card text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="combined">All Users Combined</option>
+                    {availableUsers.map(user => (
+                      <option key={user} value={user}>{user}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="text-sm text-blue-700 dark:text-blue-300">
+                  {selectedUser === 'combined'
+                    ? `Showing data for all ${availableUsers.length} user(s)`
+                    : `Showing data for ${selectedUser}`
+                  }
+                </div>
+              </div>
+            </div>
+          )}
+
+          {learningModel.size > 0 && (
+            <div className="mt-4 p-4 bg-green-50 dark:bg-dark-surface rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Brain className="h-5 w-5 text-green-600 dark:text-accent-green mr-2" />
+                  <span className="text-green-800 dark:text-green-300 font-medium">
+                    AI Model has learned {learningModel.size} merchant patterns (saved automatically)
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={exportLearningModel}
+                    className="flex items-center px-3 py-1 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 border border-blue-300 dark:border-blue-600 rounded hover:bg-blue-50 dark:hover:bg-dark-card"
+                    title="Export AI learning data to file"
+                  >
+                    <Download className="h-3 w-3 mr-1" />
+                    Export
+                  </button>
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={importLearningModel}
+                    className="hidden"
+                    id="import-model"
+                  />
+                  <label
+                    htmlFor="import-model"
+                    className="flex items-center px-3 py-1 text-sm text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 border border-green-300 dark:border-green-600 rounded hover:bg-green-50 dark:hover:bg-dark-card cursor-pointer"
+                    title="Import AI learning data from file"
+                  >
+                    <FolderOpen className="h-3 w-3 mr-1" />
+                    Import
+                  </label>
+                  <button
+                    onClick={clearLearningModel}
+                    className="text-sm text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 underline"
+                  >
+                    Reset AI
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
 
         {allTransactions.length > 0 && (
           <div className="mt-8 text-center text-gray-600 dark:text-slate-400">
