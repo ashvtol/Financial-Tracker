@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-02-11T18:26:40.230Z",
+  "timestamp": "2026-03-30T15:54:28.527Z",
   "learningModel": {
     "playstation network": "Healthcare",
     "icon dental": "Healthcare",
@@ -191,7 +191,28 @@
     "fgt above": "Entertainment - Outdoors",
     "sp vermont": "Gifts & Donations",
     "joshua repple": "Entertainment - Outdoors",
-    "splitwise providence ri": "Subscriptions"
+    "splitwise providence ri": "Subscriptions",
+    "tst seattle": "Food & Dining",
+    "the atlantic": "Education",
+    "sephora.com sephora": "Healthcare",
+    "aplpay russell": "Transportation - Parking",
+    "aplpay tlf=hansens": "Gifts & Donations",
+    "totalwine digitseattle": "Food & Dining",
+    "nespresso (888)637": "Nespresso",
+    "uber eats": "Food & Dining",
+    "tst chan": "Food & Dining",
+    "anthropic san": "Subscriptions",
+    "williams sonoma": "Shopping",
+    "indnon seattle": "Food & Dining",
+    "heytea us": "Coffee Shop",
+    "kinokuniya bookstores": "Shopping",
+    "uwajimaya seattle": "Groceries",
+    "tst beanfish": "Food & Dining",
+    "crate and": "Gifts & Donations",
+    "tst din": "Food & Dining",
+    "sq maddy's": "Food & Dining",
+    "gangnam seattle": "Food & Dining",
+    "sq bake": "Food & Dining"
   },
   "customCategories": [
     "Fees",

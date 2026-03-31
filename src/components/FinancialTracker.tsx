@@ -509,7 +509,16 @@ const FinancialTracker = () => {
   // Parse different statement formats
   const parseStatement = useCallback((file, content) => {
     return new Promise((resolve) => {
-      Papa.parse(content, {
+      // Strip metadata lines before the real header (e.g. Citi-Costco CSVs have a
+      // "Time period of report:..." line before "Date,Description,Debit,Credit,Category")
+      const knownHeaders = ['date', 'description', 'transaction date', 'posted date'];
+      const lines = content.split('\n');
+      const headerIndex = lines.findIndex(line =>
+        knownHeaders.some(h => line.toLowerCase().startsWith(h) || line.toLowerCase().startsWith(`"${h}"`))
+      );
+      const cleanedContent = headerIndex > 0 ? lines.slice(headerIndex).join('\n') : content;
+
+      Papa.parse(cleanedContent, {
         header: true,
         dynamicTyping: true,
         skipEmptyLines: true,
