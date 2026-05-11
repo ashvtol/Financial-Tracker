@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-05-02T05:10:37.685Z",
+  "timestamp": "2026-05-11T01:11:42.682Z",
   "learningModel": {
     "playstation network": "Healthcare",
     "icon dental": "Healthcare",
@@ -213,18 +213,18 @@
     "sq maddy's": "Food & Dining",
     "gangnam seattle": "Food & Dining",
     "sq bake": "Food & Dining",
-    "aplpay kricket": "Food & Dining",
+    "aplpay kricket": "Wedding",
     "spo roanokeinn": "Food & Dining",
     "tst houston": "Food & Dining",
     "tock at": "Food & Dining",
     "cmd n": "Productivity",
     "nordstrom direct": "Shopping",
     "1password toronto": "Subscriptions",
-    "king county": "Legal",
-    "richemont north": "Shopping",
+    "king county": "Wedding",
+    "richemont north": "Wedding",
     "google google": "Subscriptions",
-    "roozengaarde skmount": "Transfer",
-    "aplpay suitsupply": "Shopping",
+    "roozengaarde skmount": "Entertainment - Outdoors",
+    "aplpay suitsupply": "Wedding",
     "clear clearme.com": "Subscriptions",
     "abmseattlecentrallibseattle wa": "Transportation - Parking",
     "id:ctiglrbhz5qc id:jpm": "Housing & Utilities - Rent",
@@ -248,7 +248,7 @@
     "max dales": "Addictions",
     "speedway burlington": "Addictions",
     "sri krishna": "Food & Dining",
-    "mercer island": "Legal",
+    "mercer island": "Wedding",
     "tst cloudburst": "Food & Dining",
     "tst matcha": "Food & Dining",
     "id:ctioizok3gdm id:jpm": "Housing & Utilities - Rent",
@@ -256,7 +256,14 @@
     "edgeworks climbing": "Entertainment - Outdoors",
     "tst mission": "Food & Dining",
     "id:ctihj6rbhpfl id:bac": "Legal",
-    "apple gs": "Transfer"
+    "apple gs": "Transfer",
+    "id:cti2ofhebhzv id:jpm": "Housing & Utilities - Rent",
+    "hbo max": "Subscriptions",
+    "id:ctiaokwom28c id:jpm": "Wedding",
+    "id:ctirnxzmbifr id:jpm": "Wedding",
+    "id:ctifydraqpvl id:jpm": "Wedding",
+    "shell oil": "Addictions",
+    "tst e": "Food & Dining"
   },
   "customCategories": [
     "Fees",
@@ -267,6 +274,7 @@
     "Shopping - Amazon",
     "Housing & Utilities - Rent",
     "Productivity",
-    "Legal"
+    "Legal",
+    "Wedding"
   ]
 }
