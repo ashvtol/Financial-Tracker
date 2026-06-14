@@ -1,6 +1,11 @@
-// Payment platforms where we need to keep the transaction ID to make each unique
+// Payment platforms and variable merchants where each transaction needs its own category
 const PAYMENT_PLATFORM_PATTERNS = [
-  'venmo', 'zelle', 'paypal', 'cashapp', 'cash app', 'apple cash', 'wise'
+  'venmo', 'zelle', 'paypal', 'cashapp', 'cash app', 'apple cash', 'wise',
+  // Gas stations — could be fuel or a convenience store purchase
+  'shell oil', 'shell gas', 'exxon', 'mobil', 'bp oil', 'bp gas', 'chevron', 'texaco',
+  'sunoco', 'citgo', 'marathon', 'speedway', 'valero', 'arco', 'pilot travel',
+  'flying j', 'loves travel', 'kwik trip', 'sheetz', 'casey', 'circle k', 'wawa',
+  'quiktrip', 'racetrac', 'murphy oil', 'murphy express', 'thorntons', 'getgo',
 ];
 
 export const extractMerchant = (description: string): string => {
@@ -31,12 +36,12 @@ export const extractMerchant = (description: string): string => {
   const words = processed.split(/[\s\-#\*]+/).filter(w => w.length > 0);
 
   if (isPaymentPlatformTx) {
-    // For payment platforms, include platform name + transaction ID to make each unique
-    // e.g., "venmo payment 1047403373541" → "venmo 1047403373541"
-    const platform = words.find(w => PAYMENT_PLATFORM_PATTERNS.some(p => w.includes(p))) || words[0];
+    // Use the matched pattern as the prefix (e.g. "shell oil", "venmo") so that
+    // the extracted key still contains the full pattern and isPaymentPlatform() works.
+    const matchedPattern = PAYMENT_PLATFORM_PATTERNS.find(p => processed.includes(p)) || words[0];
     const txId = words.find(w => /^\d{6,}$/.test(w)); // Find long numeric ID
     if (txId) {
-      return `${platform} ${txId}`.trim();
+      return `${matchedPattern} ${txId}`.trim(); // e.g. "shell oil 575729373"
     }
     // If no ID found, use first 3 words to get more uniqueness
     return words.slice(0, 3).join(' ').trim();
@@ -114,10 +119,15 @@ const calculateSimilarity = (str1: string, str2: string): number => {
   return 1 - distance / maxLen;
 };
 
-// Payment platforms where each transaction is different (can't fuzzy match)
+// Payment platforms and variable merchants where each transaction is different (can't fuzzy match)
 const PAYMENT_PLATFORMS = [
   'venmo', 'zelle', 'paypal', 'cashapp', 'cash app', 'apple cash',
-  'wire transfer', 'wire from', 'capital one transfer', 'wise'
+  'wire transfer', 'wire from', 'capital one transfer', 'wise',
+  // Gas stations — same name can be fuel or convenience store
+  'shell oil', 'shell gas', 'exxon', 'mobil', 'bp oil', 'bp gas', 'chevron', 'texaco',
+  'sunoco', 'citgo', 'marathon', 'speedway', 'valero', 'arco', 'pilot travel',
+  'flying j', 'loves travel', 'kwik trip', 'sheetz', 'casey', 'circle k', 'wawa',
+  'quiktrip', 'racetrac', 'murphy oil', 'murphy express', 'thorntons', 'getgo',
 ];
 
 // Check if merchant is a generic payment platform that shouldn't be fuzzy matched
